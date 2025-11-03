@@ -14,7 +14,7 @@ app.get("/", (req, res) => {
 });
 
 app.use(cors({
-    origin: 'http://localhost:5173', // frontend URL
+    origin: process.env.CLIENT_URL, // frontend URL
     credentials: true, // to allow cookies to be sent
 }));
 app.use(express.json()); // Middleware to parse JSON request bodies
