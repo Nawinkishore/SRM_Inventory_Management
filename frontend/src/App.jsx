@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useCheckAuth } from "./features/auth/hooks/useCheckAuth";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import DashBoard from "./pages/authentication/dashboard/DashBoard";
+import DashBoard from "./pages/dashboard/DashBoard";
 import Register from "./pages/authentication/Register";
 import Login from "./pages/authentication/Login";
 import ForgotPassword from "./pages/authentication/ForgotPassword";
