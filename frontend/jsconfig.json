@@ -1,0 +1,10 @@
+    // tsconfig.json or jsconfig.json
+    {
+      "compilerOptions": {
+        // ... other options
+        "baseUrl": ".",
+        "paths": {
+          "@/*": ["./src/*"] // Assuming your components are in a 'src' folder
+        }
+      }
+    }
