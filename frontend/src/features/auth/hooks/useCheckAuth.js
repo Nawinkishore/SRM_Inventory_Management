@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/api/axios";
 import { useDispatch } from "react-redux";
-import { setUser, setLoading, clearUser } from "../../../store/authSlice";
+import { setUser, setLoading, clearUser } from "../../../store/auth/authSlice";
 import { useEffect } from "react";
 
 export const useCheckAuth = () => {
