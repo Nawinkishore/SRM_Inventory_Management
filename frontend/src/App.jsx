@@ -4,13 +4,14 @@ import { useSelector } from "react-redux";
 import { useCheckAuth } from "./features/auth/hooks/useCheckAuth";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import DashBoard from "./pages/dashboard/DashBoard";
+import Home from "./pages/Home";
+import Profile from "./pages/Profile";
+import InvoiceGenerator from "./pages/InvoiceGenerator";
 import Register from "./pages/authentication/Register";
 import Login from "./pages/authentication/Login";
 import ForgotPassword from "./pages/authentication/ForgotPassword";
 import VerifyOTP from "./pages/authentication/VerifyOTP";
 import ResetPassword from "./pages/authentication/ResetPassword";
-
-
 
 function App() {
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
@@ -36,7 +37,7 @@ function App() {
       <Route path="/verify-otp" element={<VerifyOTP />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Protected */}
+      {/* Protected Dashboard Routes */}
       <Route
         path="/dashboard"
         element={
@@ -44,7 +45,11 @@ function App() {
             <DashBoard />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<Home />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="invoice" element={<InvoiceGenerator />} />
+      </Route>
     </Routes>
   );
 }

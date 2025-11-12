@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start" : "node index.js",
+    "start": "node index.js",
     "dev": "nodemon index.js"
   },
   "keywords": [],
@@ -21,7 +21,9 @@
     "jsonwebtoken": "^9.0.2",
     "mailtrap": "^4.3.0",
     "mongoose": "^8.19.2",
-    "nodemailer": "^6.10.1"
+    "multer": "^2.0.2",
+    "nodemailer": "^6.10.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
