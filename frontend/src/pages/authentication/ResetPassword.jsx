@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Lock, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useResetPassword } from '../../features/auth/hooks/useForgotPassword';  
+import { useResetPassword } from '../../features/auth/hooks/usePassword';  
 const ResetPassword = () => {
   const navigate = useNavigate();
   const {token} = useParams();
