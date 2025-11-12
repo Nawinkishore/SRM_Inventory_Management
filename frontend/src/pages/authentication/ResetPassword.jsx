@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -6,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Lock, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-
+import { useResetPassword } from '../../features/auth/hooks/useForgotPassword';  
 const ResetPassword = () => {
   const navigate = useNavigate();
+  const {token} = useParams();
+  const { mutate: resetPassword } = useResetPassword(); 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -18,13 +21,7 @@ const ResetPassword = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // Check if reset token exists
-    const token = sessionStorage.getItem('resetToken');
-    if (!token) {
-      navigate('/forgot-password');
-    }
-  }, [navigate]);
+  
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -51,34 +48,13 @@ const ResetPassword = () => {
 
     setLoading(true);
     setMessage({ type: '', text: '' });
-
-    try {
-      const token = sessionStorage.getItem('resetToken');
-      const response = await fetch('/api/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ password: formData.password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Password reset successfully!' });
-        // Clear session storage
-        sessionStorage.removeItem('resetEmail');
-        sessionStorage.removeItem('resetToken');
-        setTimeout(() => navigate('/login'), 1500);
-      } else {
-        setMessage({ type: 'error', text: data.message || 'Failed to reset password' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
-    } finally {
-      setLoading(false);
+    resetPassword({ token, password: formData.password }, {
+      onSuccess: (data) => {
+        setMessage({ type: 'success', text: data.message });
+        setLoading(false);  
     }
+  });
+   
   };
 
   return (

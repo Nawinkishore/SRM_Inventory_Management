@@ -6,42 +6,23 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-
+import { useForgotPassword } from '../../features/auth/hooks/useForgotPassword';
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
-
+  const { mutate: forgotPassword } = useForgotPassword();
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: '', text: '' });
 
-    try {
-      const response = await fetch('/api/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'OTP sent to your email successfully!' });
-        // Store email for verification step
-        sessionStorage.setItem('resetEmail', email);
-        setTimeout(() => navigate('/verify-otp'), 1500);
-      } else {
-        setMessage({ type: 'error', text: data.message || 'Failed to send OTP' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
-    } finally {
-      setLoading(false);
-    }
+    forgotPassword(email,{
+      onSuccess: (data) => {
+        setMessage({ type: 'success', text: data.message });
+        setLoading(false);}
+    })
   };
 
   return (
@@ -90,7 +71,7 @@ const ForgotPassword = () => {
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? 'Sending OTP...' : 'Send OTP'}
+                {loading ? 'Sending Email...' : 'Send Email'}
               </Button>
             </div>
           </CardContent>

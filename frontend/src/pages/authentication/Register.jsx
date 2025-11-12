@@ -30,8 +30,8 @@ const Register = () => {
 
     register(formData, {
       onSuccess: () => {
-        setMessage({ type: 'success', text: 'Registration successful! Redirecting to login...' });
-        setTimeout(() => navigate('/login'), 1500);
+        setMessage({ type: 'success', text: 'Registration successful!' });
+        setTimeout(() => navigate('/verify-otp'), 1500);
       },
       onError: (error) => {
         setMessage({ type: 'error', text: error.message || 'Registration failed' });

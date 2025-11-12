@@ -61,6 +61,10 @@ export const login = async (req, res) => {
         if(!user){
             return res.status(400).json({success:false, message:"User not exists"});
         }
+        const isVerified = user.isVerified;
+        if (!isVerified) {
+            return res.status(400).json({ success: false, message: "Email not verified" });
+        }
         const isMatch = await bcrypt.compare(password, user.password);
         if(!isMatch){
             return res.status(400).json({success:false, message:"Invalid Password"});
