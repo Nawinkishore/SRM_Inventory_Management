@@ -1,7 +1,7 @@
 import React from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import ThemeToggle from "@/components/home/ThemeToggle";
+
 
 import {
   Avatar,
@@ -36,9 +36,7 @@ const Navbar = ({ isSidebarOpen, setIsSidebarOpen, setActiveMenu, handleLogout }
             <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
           </div>
 
-          <div className='flex items-center justify-center gap-2'>
-            <ThemeToggle />
-            <DropdownMenu>
+          <DropdownMenu>
             
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
@@ -71,7 +69,6 @@ const Navbar = ({ isSidebarOpen, setIsSidebarOpen, setActiveMenu, handleLogout }
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          </div>
         </div>
       </div>
     </nav>
