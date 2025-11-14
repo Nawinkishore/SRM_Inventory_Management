@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import api from "../../../api/axios";
 import { useDispatch } from "react-redux";
-import { clearUser } from "../../../store/auth/authSlice";
+import { clearAuth } from "../../../store/auth/authSlice";
 
 export const useLogout = () => {
   const dispatch = useDispatch();
@@ -11,7 +11,7 @@ export const useLogout = () => {
       await api.post("/auth/logout"); // your backend clears cookie
     },
     onSuccess: () => {
-      dispatch(clearUser());
+      dispatch(clearAuth());
     },
   });
 };

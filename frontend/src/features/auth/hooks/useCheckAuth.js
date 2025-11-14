@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/api/axios";
 import { useDispatch } from "react-redux";
-import { setUser, setLoading, clearUser } from "../../../store/auth/authSlice";
+import { setAuthData, setLoading, clearAuth } from "../../../store/auth/authSlice";
 import { useEffect } from "react";
 
 export const useCheckAuth = () => {
@@ -20,9 +20,9 @@ export const useCheckAuth = () => {
 
     useEffect(() => {
         if (query.isSuccess && query.data) {
-            dispatch(setUser(query.data));
+            dispatch(setAuthData(query.data));
         } else if (query.isError) {
-            dispatch(clearUser());
+            dispatch(clearAuth());
         }
         
         if (!query.isLoading) {

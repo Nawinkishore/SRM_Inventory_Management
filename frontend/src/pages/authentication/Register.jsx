@@ -29,8 +29,9 @@ const Register = () => {
     setMessage({ type: '', text: '' });
 
     register(formData, {
-      onSuccess: () => {
+      onSuccess: (data) => {
         setMessage({ type: 'success', text: 'Registration successful!' });
+        localStorage.setItem("userEmail", data.user.email);
         setTimeout(() => navigate('/verify-otp'), 1500);
       },
       onError: (error) => {

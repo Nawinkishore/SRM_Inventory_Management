@@ -4,11 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { KeyRound, Lock, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { KeyRound, Lock, CheckCircle2, Send } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useVerifyOTP } from '../../features/auth/hooks/useRegister';
+import { useResendVerificationEmail, useVerifyOTP } from '../../features/auth/hooks/useRegister';
+
 const VerifyOTP = () => {
   const {mutate : verifyOTP ,isLoading,isError,error} = useVerifyOTP();
+  const {mutate : resendVerificationEmail} = useResendVerificationEmail();
   const navigate = useNavigate();
   const [code, setCode] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -25,10 +27,17 @@ const VerifyOTP = () => {
         setMessage({ type: 'success', text: 'Email verified successfully! Redirecting to dashboard...' });
         setTimeout(() => navigate('/dashboard'), 1500);
       },
+    });  };
+    const handleResendOTP = async (e) => {
+    e.preventDefault();
+    resendVerificationEmail(localStorage.getItem("userEmail"),{
+      onSuccess: (data) => {
+        setMessage({ type: 'success', text: data.message });
+      }
     });
 
-    
-  };
+
+    }
 
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -86,13 +95,13 @@ const VerifyOTP = () => {
             </div>
           </CardContent>
           <CardFooter className="flex justify-center">
-            <Link 
-              to="/register" 
-              className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+            <Button 
+              onClick={handleResendOTP}
+              className="text-sm text-blue-600 hover:cursor-pointer hover:text-white bg-white flex items-center gap-1"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Register
-            </Link>
+              {/* <Send /> */}
+              Resend OTP
+            </Button>
           </CardFooter>
         </Card>
       </div>

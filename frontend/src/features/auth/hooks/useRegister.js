@@ -17,3 +17,12 @@ export const useVerifyOTP = () => {
         },
     });
 };
+
+export const useResendVerificationEmail = () => {
+    return useMutation({
+        mutationFn : async (email) => {
+            const {data} = await api.post(`/auth/resend-verification`, {email}, { withCredentials: true });
+            return data;
+        }
+    });
+}
