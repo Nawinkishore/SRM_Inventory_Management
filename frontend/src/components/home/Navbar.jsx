@@ -19,10 +19,11 @@ import { User, LogOut } from 'lucide-react';
 import { useSelector } from 'react-redux';
 const Navbar = ({ isSidebarOpen, setIsSidebarOpen, setActiveMenu, handleLogout }) => {
     const { user } = useSelector((state) => state.auth);
+    const {profile1} = useSelector((state) => state.profile);
   return (
     <nav className="bg-white border-b fixed w-full z-30 top-0">
       <div className="px-4 lg:px-6">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 ">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -37,8 +38,11 @@ const Navbar = ({ isSidebarOpen, setIsSidebarOpen, setActiveMenu, handleLogout }
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar>
-                  <AvatarImage src="https://github.com/shadcn.png" alt="Profile" />
-                  <AvatarFallback>JD</AvatarFallback>
+                  {profile1 && profile1.profileImage ? (
+                    <AvatarImage src={profile1.profileImage} alt="User Avatar" />
+                  ) : (
+                    <AvatarImage src="https://github.com/shadcn.png" alt="Profile" />
+                  )}
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>

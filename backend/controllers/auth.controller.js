@@ -141,7 +141,6 @@ export const login = async (req, res) => {
             success: true,
             message: "Logged in successfully",
             user: { ...user._doc, password: undefined },
-            profile
         });
 
     } catch (error) {
@@ -263,12 +262,9 @@ export const checkAuth = async (req, res) => {
         if (!user)
             return res.status(404).json({ success: false, message: "User not found" });
 
-        const profile = await Profile.findOne({ userId: req.userId });
-
         return res.status(200).json({
             success: true,
             user,
-            profile
         });
 
     } catch (error) {

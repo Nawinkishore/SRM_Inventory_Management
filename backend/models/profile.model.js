@@ -42,16 +42,6 @@ const ProfileSchema = new mongoose.Schema(
     },
 
     // UI Settings
-    settings: {
-      theme: { type: String, enum: ["light", "dark"], default: "light" },
-      language: { type: String, default: "en" },
-      notifications: {
-        email: { type: Boolean, default: true },
-        sms: { type: Boolean, default: false },
-        push: { type: Boolean, default: true },
-      },
-    },
-
     // Extra security (User login tracking)
     security: {
       lastLogin: { type: Date, default: Date.now },
@@ -62,7 +52,6 @@ const ProfileSchema = new mongoose.Schema(
           device: String,
         },
       ],
-      isTwoFactorEnabled: { type: Boolean, default: false },
     },
 
     // Account status

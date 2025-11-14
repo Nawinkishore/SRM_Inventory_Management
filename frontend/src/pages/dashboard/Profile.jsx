@@ -1,482 +1,477 @@
-import React, { useState, useRef } from 'react';
-import { Camera, Mail, Phone, MapPin, Calendar, Clock, Edit2, Lock, Save, X } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import React, { useEffect, useState } from "react";
+import {
+  Edit2,
+  Mail,
+  Phone,
+  MapPin,
+  Shield,
+  Clock,
+  Save,
+  X,
+} from "lucide-react";
+import { useSelector } from "react-redux";
+import { useGetProfile } from "@/features/profile/hooks/useGetProfile";
+import { useUpdateProfile } from "@/features/profile/hooks/useUpdateProfile";
 
 const Profile = () => {
-  // Sample user data
-  const [user, setUser] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    role: 'Admin',
-    bio: 'Passionate about technology and innovation. Leading digital transformation initiatives.',
-    profileImage: null,
-    status: 'active',
-    createdAt: '2024-01-15',
-    lastLogin: '2024-11-12 09:30 AM',
-    addresses: [
-      {
-        id: 1,
-        type: 'Shipping',
-        street: '123 Main Street',
-        city: 'San Francisco',
-        state: 'CA',
-        zip: '94102',
-        country: 'USA'
-      },
-      {
-        id: 2,
-        type: 'Billing',
-        street: '456 Oak Avenue',
-        city: 'San Francisco',
-        state: 'CA',
-        zip: '94103',
-        country: 'USA'
-      }
-    ]
-  });
+  const { user } = useSelector((state) => state.auth);
+  const { profile1 } = useSelector((state) => state.profile);
 
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const { mutate: getProfile } = useGetProfile();
+  const { mutate: updateProfile, isPending } = useUpdateProfile();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [updatedProfile, setUpdatedProfile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [editForm, setEditForm] = useState({ ...user });
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const fileInputRef = useRef(null);
 
-  // Get initials for fallback avatar
-  const getInitials = () => {
-    return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
-  };
+  // Load profile initially
+  useEffect(() => {
+    if (user?._id) getProfile(user._id);
+  }, [user]);
 
-  // Handle image upload to Cloudinary
+  // Sync redux into local editable state
+  useEffect(() => {
+    if (profile1) setUpdatedProfile(profile1);
+  }, [profile1]);
+
+  if (!updatedProfile) return null;
+
+  // -----------------------
+  // CLOUDINARY UPLOAD
+  // -----------------------
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB');
-      return;
-    }
-
-    setUploading(true);
-
     try {
-      // IMPORTANT: Replace these with your actual Cloudinary credentials
-      const CLOUDINARY_CLOUD_NAME = 'dakiluddl';
-      const CLOUDINARY_UPLOAD_PRESET = 'your_upload_preset';
+      setUploading(true);
 
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      formData.append('folder', 'profile_images');
+      formData.append("file", file);
+      formData.append(
+        "upload_preset",
+        import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+      );
+
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
       const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
         {
-          method: 'POST',
+          method: "POST",
           body: formData,
         }
       );
 
       const data = await response.json();
+      console.log("Cloudinary Response:", data);
 
       if (data.secure_url) {
-        setUser({ ...user, profileImage: data.secure_url });
-        setEditForm({ ...editForm, profileImage: data.secure_url });
+        const updated = {
+          ...updatedProfile,
+          profileImage: data.secure_url,
+        };
+
+        // Auto-save immediately
+        updateProfile(updated);
+        setUpdatedProfile(updated);
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      alert('Failed to upload image. Please try again.');
+      console.error("Cloudinary Upload Error:", error);
     } finally {
       setUploading(false);
     }
   };
 
-  // Handle profile edit
-  const handleEditSubmit = () => {
-    setUser(editForm);
-    setIsEditDialogOpen(false);
-  };
-
-  // Handle password change
-  const handlePasswordSubmit = () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('Passwords do not match!');
-      return;
-    }
-    if (passwordForm.newPassword.length < 8) {
-      alert('Password must be at least 8 characters long!');
-      return;
-    }
-    // Here you would typically make an API call to change the password
-    alert('Password changed successfully!');
-    setIsPasswordDialogOpen(false);
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  // -----------------------
+  // SAVE ENTIRE PROFILE
+  // -----------------------
+  const handleSave = () => {
+    updateProfile(updatedProfile, {
+      onSuccess: () => {
+        setIsEditing(false);
+        getProfile(user._id);
+      },
+    });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gray-50">
+      {/* HEADER */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Welcome {updatedProfile.firstName}
+        </h1>
+        <p className="text-gray-500 mt-1">
+          Manage your account information and preferences
+        </p>
+      </div>
+
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-800">Profile</h1>
-          <p className="text-slate-600 mt-1">Manage your account settings and preferences</p>
-        </div>
+        {/* PROFILE HEADER CARD */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
+          <div className="h-32 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 relative">
+            <div className="absolute top-4 right-4">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  updatedProfile.status === "active"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {updatedProfile.status?.toUpperCase()}
+              </span>
+            </div>
+          </div>
 
-        {/* Main Profile Card */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          {/* Cover Section */}
-          <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600"></div>
+          <div className="px-6 pb-6">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between -mt-16">
 
-          <div className="px-8 pb-8">
-            {/* Avatar Section */}
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between -mt-16 mb-6">
-              <div className="flex items-end gap-4">
-                <div className="relative">
-                  <div className="w-32 h-32 rounded-2xl bg-white p-1 shadow-xl">
-                    {user.profileImage ? (
-                      <img
-                        src={user.profileImage}
-                        alt="Profile"
-                        className="w-full h-full rounded-xl object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold">
-                        {getInitials()}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-lg transition-colors disabled:opacity-50"
+              {/* --- PROFILE IMAGE SECTION --- */}
+              <div className="flex flex-col md:flex-row md:items-end gap-4">
+                <div className="relative w-32 h-32 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-gray-100">
+
+                  <img
+                    src={
+                      updatedProfile.profileImage ||
+                      "https://github.com/shadcn.png"
+                    }
+                    alt="profile"
+                    className="w-full h-full object-cover"
+                  />
+
+                  {/* Upload Loader */}
+                  {uploading && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+
+                  {/* Upload Button */}
+                  <label
+                    htmlFor="profileUpload"
+                    className="absolute bottom-0 w-full bg-black bg-opacity-50 text-white text-center py-2 cursor-pointer text-sm"
                   >
-                    {uploading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <Camera className="w-5 h-5" />
-                    )}
-                  </button>
+                    Upload
+                  </label>
+
                   <input
-                    ref={fileInputRef}
+                    id="profileUpload"
                     type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
                     className="hidden"
+                    onChange={handleImageUpload}
                   />
                 </div>
 
-                <div className="mb-2">
-                  <h2 className="text-2xl font-bold text-slate-800">
-                    {user.firstName} {user.lastName}
+                <div>
+                  <h2 className="text-xl font-bold">
+                    {updatedProfile.firstName} {updatedProfile.lastName}
                   </h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-blue-600 font-medium">{user.role}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      user.status === 'active' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                    </span>
-                  </div>
+                  <p className="text-gray-500">{user?.email}</p>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium mt-2 inline-block">
+                    {updatedProfile.role?.toUpperCase()}
+                  </span>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 mt-4 md:mt-0">
-                <button
-                  onClick={() => {
-                    setEditForm({ ...user });
-                    setIsEditDialogOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Edit Profile
-                </button>
-                <button
-                  onClick={() => setIsPasswordDialogOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg transition-colors"
-                >
-                  <Lock className="w-4 h-4" />
-                  Change Password
-                </button>
-              </div>
-            </div>
+              {/* ACTION BUTTONS */}
+              <div className="flex gap-2 mt-4 md:mt-0">
+                {isEditing ? (
+                  <>
+                    <button
+                      onClick={() => setIsEditing(false)}
+                      className="px-4 py-2 bg-gray-100 rounded-xl"
+                    >
+                      <X size={16} /> Cancel
+                    </button>
 
-            {/* Bio Section */}
-            {user.bio && (
-              <div className="mb-6 p-4 bg-slate-50 rounded-lg">
-                <p className="text-slate-700">{user.bio}</p>
-              </div>
-            )}
-
-            {/* Info Grid */}
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              {/* Contact Info */}
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800 mb-3">Contact Information</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <Mail className="w-5 h-5 text-blue-600" />
-                    <span>{user.email}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <Phone className="w-5 h-5 text-blue-600" />
-                    <span>{user.phone}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Account Info */}
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800 mb-3">Account Details</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                    <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <Clock className="w-5 h-5 text-blue-600" />
-                    <span>Last login: {user.lastLogin}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Addresses */}
-            <div>
-              <h3 className="text-lg font-semibold text-slate-800 mb-3">Saved Addresses</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                {user.addresses.map((address) => (
-                  <div key={address.id} className="p-4 border border-slate-200 rounded-lg hover:border-blue-300 transition-colors">
-                    <div className="flex items-start justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-600">{address.type}</span>
-                      <MapPin className="w-4 h-4 text-slate-400" />
-                    </div>
-                    <p className="text-sm text-slate-700">
-                      {address.street}<br />
-                      {address.city}, {address.state} {address.zip}<br />
-                      {address.country}
-                    </p>
-                  </div>
-                ))}
+                    <button
+                      onClick={handleSave}
+                      disabled={isPending}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl"
+                    >
+                      <Save size={16} />
+                      {isPending ? "Saving..." : "Save Changes"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-4 py-2 bg-blue-600 flex items-center justify-center gap-2 text-white rounded-xl"
+                  >
+                    <Edit2 size={16} /> Edit Profile
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Cloudinary Setup Alert */}
-        <Alert className="mt-6 border-blue-200 bg-blue-50">
-          <AlertDescription className="text-sm text-blue-800">
-            <strong>Setup Required:</strong> To enable image uploads, replace 'your_cloud_name' and 'your_upload_preset' 
-            in the code with your Cloudinary credentials. Create a free account at{' '}
-            <a href="https://cloudinary.com" target="_blank" rel="noopener noreferrer" className="underline">
-              cloudinary.com
-            </a>
-          </AlertDescription>
-        </Alert>
+        {/* ------------------------------ SINGLE PAGE FORM ------------------------------ */}
+        <div className="bg-white rounded-2xl shadow-sm p-6">
 
-        {/* Edit Profile Dialog */}
-        {isEditDialogOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setIsEditDialogOpen(false);
-            }}
-          >
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Edit Profile</h2>
-                    <p className="text-slate-600 text-sm mt-1">Update your personal information</p>
-                  </div>
-                  <button
-                    onClick={() => setIsEditDialogOpen(false)}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+          {/* PERSONAL INFORMATION */}
+          <h3 className="text-xl font-bold mb-6">Personal Information</h3>
 
-                <div className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        First Name
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.firstName}
-                        onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Last Name
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.lastName}
-                        onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      />
-                    </div>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={editForm.email}
-                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
-                  </div>
+            {/* First Name */}
+            <div>
+              <label className="block mb-2 text-sm font-medium">
+                First Name
+              </label>
+              <input
+                disabled={!isEditing}
+                value={updatedProfile.firstName}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    firstName: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
+              />
+            </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Phone
-                    </label>
-                    <input
-                      type="tel"
-                      value={editForm.phone}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
-                  </div>
+            {/* Last Name */}
+            <div>
+              <label className="block mb-2 text-sm font-medium">Last Name</label>
+              <input
+                disabled={!isEditing}
+                value={updatedProfile.lastName}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    lastName: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
+              />
+            </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Bio
-                    </label>
-                    <textarea
-                      value={editForm.bio}
-                      onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                      rows={3}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
-                      placeholder="Tell us about yourself..."
-                    />
-                  </div>
-                </div>
+            {/* Phone */}
+            <div>
+              <label className="block mb-2 text-sm font-medium">Phone</label>
+              <input
+                disabled={!isEditing}
+                value={updatedProfile.phone}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    phone: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
+              />
+            </div>
 
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={handleEditSubmit}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </button>
-                  <button
-                    onClick={() => setIsEditDialogOpen(false)}
-                    className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+            {/* Gender */}
+            <div>
+              <label className="block mb-2 text-sm font-medium">Gender</label>
+              <select
+                disabled={!isEditing}
+                value={updatedProfile.gender}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    gender: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
+              >
+                <option value="">Select Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+
+            {/* Date of Birth */}
+            <div>
+              <label className="block mb-2 text-sm font-medium">
+                Date of Birth
+              </label>
+              <input
+                type="date"
+                disabled={!isEditing}
+                value={
+                  updatedProfile.dateOfBirth
+                    ? updatedProfile.dateOfBirth.substring(0, 10)
+                    : ""
+                }
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    dateOfBirth: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
+              />
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block mb-2 text-sm font-medium">Role</label>
+              <select
+                disabled={!isEditing}
+                value={updatedProfile.role}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    role: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
+              >
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="staff">Staff</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+
+            {/* Account Status */}
+            <div>
+              <label className="block mb-2 text-sm font-medium">Status</label>
+              <select
+                disabled={!isEditing}
+                value={updatedProfile.status}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    status: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+              </select>
             </div>
           </div>
-        )}
 
-        {/* Change Password Dialog */}
-        {isPasswordDialogOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setIsPasswordDialogOpen(false);
-            }}
-          >
-            <div className="bg-white rounded-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Change Password</h2>
-                    <p className="text-slate-600 text-sm mt-1">Update your account password</p>
-                  </div>
-                  <button
-                    onClick={() => setIsPasswordDialogOpen(false)}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+          {/* ADDRESS INFORMATION */}
+          <h3 className="text-xl font-bold mb-6 mt-10">Address Information</h3>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Current Password
-                    </label>
-                    <input
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      New Password
-                    </label>
-                    <input
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
-                  </div>
+            {/* Street */}
+            <div className="md:col-span-2">
+              <label className="block mb-2">Street</label>
+              <input
+                disabled={!isEditing}
+                value={updatedProfile.address.street}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, street: e.target.value },
+                  }))
+                }
+                className="w-full px-4 py-3 border bg-gray-50 rounded-xl"
+              />
+            </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Confirm New Password
-                    </label>
-                    <input
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
-                  </div>
-                </div>
+            {/* City */}
+            <div>
+              <label className="block mb-2">City</label>
+              <input
+                disabled={!isEditing}
+                value={updatedProfile.address.city}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, city: e.target.value },
+                  }))
+                }
+                className="w-full px-4 py-3 border bg-gray-50 rounded-xl"
+              />
+            </div>
 
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={handlePasswordSubmit}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg transition-colors"
-                  >
-                    <Lock className="w-4 h-4" />
-                    Update Password
-                  </button>
-                  <button
-                    onClick={() => setIsPasswordDialogOpen(false)}
-                    className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+            {/* District */}
+            <div>
+              <label className="block mb-2">District</label>
+              <input
+                disabled={!isEditing}
+                value={updatedProfile.address.district}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, district: e.target.value },
+                  }))
+                }
+                className="w-full px-4 py-3 border bg-gray-50 rounded-xl"
+              />
+            </div>
+
+            {/* State */}
+            <div>
+              <label className="block mb-2">State</label>
+              <input
+                disabled={!isEditing}
+                value={updatedProfile.address.state}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, state: e.target.value },
+                  }))
+                }
+                className="w-full px-4 py-3 border bg-gray-50 rounded-xl"
+              />
+            </div>
+
+            {/* Pincode */}
+            <div>
+              <label className="block mb-2">Pincode</label>
+              <input
+                disabled={!isEditing}
+                value={updatedProfile.address.pincode}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, pincode: e.target.value },
+                  }))
+                }
+                className="w-full px-4 py-3 border bg-gray-50 rounded-xl"
+              />
+            </div>
+
+            {/* Country */}
+            <div className="md:col-span-2">
+              <label className="block mb-2">Country</label>
+              <select
+                disabled={!isEditing}
+                value={updatedProfile.address.country}
+                onChange={(e) =>
+                  setUpdatedProfile((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, country: e.target.value },
+                  }))
+                }
+                className="w-full px-4 py-3 border bg-gray-50 rounded-xl"
+              >
+                <option value="India">India</option>
+                <option value="USA">USA</option>
+                <option value="UK">UK</option>
+              </select>
             </div>
           </div>
-        )}
+
+          {/* SECURITY SECTION */}
+          <h3 className="text-xl font-bold mb-6 mt-10">Security</h3>
+
+          <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-4">
+            <Clock size={20} />
+            <div>
+              <p className="font-medium">Last Login</p>
+              <p className="text-gray-600">
+                {updatedProfile.security?.lastLogin
+                  ? new Date(updatedProfile.security.lastLogin).toLocaleString()
+                  : "Not Available"}
+              </p>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );

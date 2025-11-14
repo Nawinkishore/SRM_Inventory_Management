@@ -3,6 +3,7 @@ import storage from "redux-persist/lib/storage";
 import { persistReducer, persistStore } from "redux-persist";
 import authReducer from "./auth/authSlice";
 import productReducer from "./product/productSlice";
+import profileReducer from "./profile/profileSlice";
 const persistConfig = {
     key: 'root',
     storage,
@@ -11,7 +12,8 @@ const persistConfig = {
 
 const rootReducer = combineReducers({
     auth: authReducer,
-    products:productReducer
+    profile: profileReducer,
+    products:productReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
