@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Trash2, Download, Search, X } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchProducts, clearProducts } from "@/store/product/productSlice";

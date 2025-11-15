@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Lock, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useResetPassword } from '../../features/auth/hooks/usePassword';  
+import { toast } from 'sonner';
 const ResetPassword = () => {
   const navigate = useNavigate();
   const {token} = useParams();
@@ -29,11 +30,11 @@ const ResetPassword = () => {
 
   const validatePassword = () => {
     if (formData.password.length < 8) {
-      setMessage({ type: 'error', text: 'Password must be at least 8 characters long' });
+      toast.error('Password must be at least 8 characters long');
       return false;
     }
     if (formData.password !== formData.confirmPassword) {
-      setMessage({ type: 'error', text: 'Passwords do not match' });
+      toast.error('Passwords do not match');
       return false;
     }
     return true;
@@ -50,7 +51,7 @@ const ResetPassword = () => {
     setMessage({ type: '', text: '' });
     resetPassword({ token, password: formData.password }, {
       onSuccess: (data) => {
-        setMessage({ type: 'success', text: data.message });
+        toast.success(data.message || 'Password reset successful!');
         setLoading(false);  
     }
   });

@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLogin } from '../../features/auth/hooks/useLogin';
+import { toast } from 'sonner';
 const Login = () => {
   const {mutate : login ,isLoading,isError,error} = useLogin();
   const navigate = useNavigate();
@@ -15,7 +15,6 @@ const Login = () => {
     email: '',
     password: ''
   });
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
@@ -25,13 +24,11 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage({ type: '', text: '' });
     login(formData, {
       onSuccess: (data) => {
-        setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
         setTimeout(() => navigate('/dashboard'), 1500);},
       onError: (error) => {
-        setMessage({ type: 'error', text: error.response?.data?.message || 'Login failed. Please try again.' });
+        toast.error(error?.response?.data?.message || 'Login failed');
       },
       onSettled: () => {
         setLoading(false);
@@ -107,12 +104,6 @@ const Login = () => {
                   Forgot password?
                 </Link>
               </div>
-
-              {message.text && (
-                <Alert className={message.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}>
-                  <AlertDescription>{message.text}</AlertDescription>
-                </Alert>
-              )}
 
               <Button 
                 onClick={handleLogin} 

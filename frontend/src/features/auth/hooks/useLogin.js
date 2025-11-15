@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import api from "@/api/axios";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "@/store/auth/authSlice";
-
+import { toast } from "sonner";
 export const useLogin = () => {
   const dispatch = useDispatch();
 
@@ -17,9 +17,9 @@ export const useLogin = () => {
       dispatch(
         setAuthData({
           user: data.user,
-          profile: data.profile,
         })
       );
+      toast.success(data.message || "Login successful!");
     },
   });
 };

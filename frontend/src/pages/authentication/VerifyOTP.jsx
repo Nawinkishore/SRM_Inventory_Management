@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { KeyRound, Lock, CheckCircle2, Send } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useResendVerificationEmail, useVerifyOTP } from '../../features/auth/hooks/useRegister';
-
+import { toast } from 'sonner';
 const VerifyOTP = () => {
   const {mutate : verifyOTP ,isLoading,isError,error} = useVerifyOTP();
   const {mutate : resendVerificationEmail} = useResendVerificationEmail();
@@ -21,10 +21,10 @@ const VerifyOTP = () => {
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage({ type: '', text: '' });
     verifyOTP(code, {
-      onSuccess: (data) => {
-        setMessage({ type: 'success', text: 'Email verified successfully! Redirecting to dashboard...' });
+        onSuccess: (data) => {
+        toast.success(data.message || 'Email verified successfully!');
+        setLoading(false);
         setTimeout(() => navigate('/dashboard'), 1500);
       },
     });  };
@@ -32,7 +32,7 @@ const VerifyOTP = () => {
     e.preventDefault();
     resendVerificationEmail(localStorage.getItem("userEmail"),{
       onSuccess: (data) => {
-        setMessage({ type: 'success', text: data.message });
+        toast.success(data.message || 'OTP resent successfully!');
       }
     });
 

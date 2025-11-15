@@ -3,12 +3,13 @@ import { useLogout } from '@/features/auth/hooks/useLogout';
 import { Outlet } from 'react-router-dom';
 import Navbar from '@/components/home/Navbar';
 import Sidebar from '@/components/home/Sidebar';
-
+import { toast } from 'sonner';
 const DashBoard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { mutate: logout } = useLogout();
   
   const handleLogout = () => {
+    toast.success('Logged out successfully');
     logout();
   };
 

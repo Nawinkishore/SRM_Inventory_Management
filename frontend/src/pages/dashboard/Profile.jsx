@@ -1,17 +1,24 @@
 import React, { useEffect, useState } from "react";
+import { Edit2, Clock, Save, X } from "lucide-react";
 import {
-  Edit2,
-  Mail,
-  Phone,
-  MapPin,
-  Shield,
-  Clock,
-  Save,
-  X,
-} from "lucide-react";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useSelector } from "react-redux";
 import { useGetProfile } from "@/features/profile/hooks/useGetProfile";
 import { useUpdateProfile } from "@/features/profile/hooks/useUpdateProfile";
+import { useDeleteAccount } from "@/features/auth/hooks/useDeleteAccount";
+import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
+import { useChangePassword } from "@/features/auth/hooks/useChangePassword";
+import { toast } from "sonner";
 
 const Profile = () => {
   const { user } = useSelector((state) => state.auth);
@@ -19,17 +26,84 @@ const Profile = () => {
 
   const { mutate: getProfile } = useGetProfile();
   const { mutate: updateProfile, isPending } = useUpdateProfile();
+  const { mutate: deleteAccount } = useDeleteAccount();
+  // Change Password States
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+  const [passwordError, setPasswordError] = useState("");
+
+  const { mutate: changePassword, isPending: isChanging } = useChangePassword();
+  const validatePassword = () => {
+    const { currentPassword, newPassword, confirmPassword } = passwordData;
+
+    if (!currentPassword.trim()) return "Current password is required.";
+
+    if (newPassword.length < 8)
+      return "New password must be at least 8 characters.";
+
+    if (newPassword === currentPassword)
+      return "New password cannot be the same as current password.";
+
+    const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+    if (!strongRegex.test(newPassword))
+      return "Password must include uppercase, lowercase, number, and special character.";
+
+    if (newPassword !== confirmPassword)
+      return "Confirm password does not match.";
+
+    return ""; // VALID
+  };
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+
+    const err = validatePassword();
+    setPasswordError(err);
+
+    if (err) return;
+
+    changePassword(
+      {
+        userId: user._id,
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      },
+      {
+        onSuccess: () => {
+          setPasswordError("");
+          setPasswordData({
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+          });
+          
+        },
+      }
+    );
+
+  };
 
   const [isEditing, setIsEditing] = useState(false);
   const [updatedProfile, setUpdatedProfile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  // Load profile initially
+  // Delete logic
+  const [isDeleteMatched, setIsDeleteMatched] = useState(false);
+
   useEffect(() => {
     if (user?._id) getProfile(user._id);
   }, [user]);
 
-  // Sync redux into local editable state
   useEffect(() => {
     if (profile1) setUpdatedProfile(profile1);
   }, [profile1]);
@@ -64,7 +138,6 @@ const Profile = () => {
       );
 
       const data = await response.json();
-      console.log("Cloudinary Response:", data);
 
       if (data.secure_url) {
         const updated = {
@@ -72,7 +145,6 @@ const Profile = () => {
           profileImage: data.secure_url,
         };
 
-        // Auto-save immediately
         updateProfile(updated);
         setUpdatedProfile(updated);
       }
@@ -93,6 +165,23 @@ const Profile = () => {
         getProfile(user._id);
       },
     });
+  };
+
+  // -----------------------
+  // DELETE INPUT CHECK
+  // -----------------------
+  const handleDeleteInput = (e) => {
+    const text = e.target.value.trim();
+    setIsDeleteMatched(text === `Delete/${updatedProfile.firstName}`);
+  };
+
+  // -----------------------
+  // DELETE SUBMIT
+  // -----------------------
+  const handleDeleteSubmit = (e) => {
+    e.preventDefault();
+    if (!isDeleteMatched) return;
+    deleteAccount(user._id);
   };
 
   return (
@@ -126,11 +215,9 @@ const Profile = () => {
 
           <div className="px-6 pb-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between -mt-16">
-
-              {/* --- PROFILE IMAGE SECTION --- */}
+              {/* IMAGE */}
               <div className="flex flex-col md:flex-row md:items-end gap-4">
                 <div className="relative w-32 h-32 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-gray-100">
-
                   <img
                     src={
                       updatedProfile.profileImage ||
@@ -140,21 +227,18 @@ const Profile = () => {
                     className="w-full h-full object-cover"
                   />
 
-                  {/* Upload Loader */}
                   {uploading && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
                     </div>
                   )}
 
-                  {/* Upload Button */}
                   <label
                     htmlFor="profileUpload"
                     className="absolute bottom-0 w-full bg-black bg-opacity-50 text-white text-center py-2 cursor-pointer text-sm"
                   >
                     Upload
                   </label>
-
                   <input
                     id="profileUpload"
                     type="file"
@@ -168,13 +252,14 @@ const Profile = () => {
                     {updatedProfile.firstName} {updatedProfile.lastName}
                   </h2>
                   <p className="text-gray-500">{user?.email}</p>
+
                   <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium mt-2 inline-block">
                     {updatedProfile.role?.toUpperCase()}
                   </span>
                 </div>
               </div>
 
-              {/* ACTION BUTTONS */}
+              {/* BUTTONS */}
               <div className="flex gap-2 mt-4 md:mt-0">
                 {isEditing ? (
                   <>
@@ -207,15 +292,13 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* ------------------------------ SINGLE PAGE FORM ------------------------------ */}
+        {/* FORM */}
         <div className="bg-white rounded-2xl shadow-sm p-6">
-
-          {/* PERSONAL INFORMATION */}
+          {/* PERSONAL INFO */}
           <h3 className="text-xl font-bold mb-6">Personal Information</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* First Name */}
+            {/* FIRST NAME */}
             <div>
               <label className="block mb-2 text-sm font-medium">
                 First Name
@@ -233,9 +316,11 @@ const Profile = () => {
               />
             </div>
 
-            {/* Last Name */}
+            {/* LAST NAME */}
             <div>
-              <label className="block mb-2 text-sm font-medium">Last Name</label>
+              <label className="block mb-2 text-sm font-medium">
+                Last Name
+              </label>
               <input
                 disabled={!isEditing}
                 value={updatedProfile.lastName}
@@ -249,7 +334,7 @@ const Profile = () => {
               />
             </div>
 
-            {/* Phone */}
+            {/* PHONE */}
             <div>
               <label className="block mb-2 text-sm font-medium">Phone</label>
               <input
@@ -265,7 +350,7 @@ const Profile = () => {
               />
             </div>
 
-            {/* Gender */}
+            {/* GENDER */}
             <div>
               <label className="block mb-2 text-sm font-medium">Gender</label>
               <select
@@ -285,7 +370,7 @@ const Profile = () => {
               </select>
             </div>
 
-            {/* Date of Birth */}
+            {/* DOB */}
             <div>
               <label className="block mb-2 text-sm font-medium">
                 Date of Birth
@@ -307,55 +392,13 @@ const Profile = () => {
                 className="w-full px-4 py-3 border rounded-xl bg-gray-50"
               />
             </div>
-
-            {/* Role */}
-            <div>
-              <label className="block mb-2 text-sm font-medium">Role</label>
-              <select
-                disabled={!isEditing}
-                value={updatedProfile.role}
-                onChange={(e) =>
-                  setUpdatedProfile((prev) => ({
-                    ...prev,
-                    role: e.target.value,
-                  }))
-                }
-                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
-              >
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="staff">Staff</option>
-                <option value="viewer">Viewer</option>
-              </select>
-            </div>
-
-            {/* Account Status */}
-            <div>
-              <label className="block mb-2 text-sm font-medium">Status</label>
-              <select
-                disabled={!isEditing}
-                value={updatedProfile.status}
-                onChange={(e) =>
-                  setUpdatedProfile((prev) => ({
-                    ...prev,
-                    status: e.target.value,
-                  }))
-                }
-                className="w-full px-4 py-3 border rounded-xl bg-gray-50"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
-              </select>
-            </div>
           </div>
 
-          {/* ADDRESS INFORMATION */}
+          {/* ADDRESS SECTION */}
           <h3 className="text-xl font-bold mb-6 mt-10">Address Information</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* Street */}
+            {/* STREET */}
             <div className="md:col-span-2">
               <label className="block mb-2">Street</label>
               <input
@@ -371,7 +414,7 @@ const Profile = () => {
               />
             </div>
 
-            {/* City */}
+            {/* CITY */}
             <div>
               <label className="block mb-2">City</label>
               <input
@@ -387,7 +430,7 @@ const Profile = () => {
               />
             </div>
 
-            {/* District */}
+            {/* DISTRICT */}
             <div>
               <label className="block mb-2">District</label>
               <input
@@ -403,7 +446,7 @@ const Profile = () => {
               />
             </div>
 
-            {/* State */}
+            {/* STATE */}
             <div>
               <label className="block mb-2">State</label>
               <input
@@ -419,7 +462,7 @@ const Profile = () => {
               />
             </div>
 
-            {/* Pincode */}
+            {/* PINCODE */}
             <div>
               <label className="block mb-2">Pincode</label>
               <input
@@ -435,7 +478,7 @@ const Profile = () => {
               />
             </div>
 
-            {/* Country */}
+            {/* COUNTRY */}
             <div className="md:col-span-2">
               <label className="block mb-2">Country</label>
               <select
@@ -457,7 +500,7 @@ const Profile = () => {
           </div>
 
           {/* SECURITY SECTION */}
-          <h3 className="text-xl font-bold mb-6 mt-10">Security</h3>
+          <h3 className="text-xl font-bold mb-6 mt-10">Account Settings</h3>
 
           <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-4">
             <Clock size={20} />
@@ -471,6 +514,181 @@ const Profile = () => {
             </div>
           </div>
 
+          {/* DELETE ACCOUNT */}
+          <div className="mt-6 flex items-center justify-between">
+            <Dialog>
+              <form onSubmit={handleDeleteSubmit}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">Delete Account</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]" aria-describedby="delete-account-description">
+                  <DialogHeader>
+                    <DialogTitle>Delete profile</DialogTitle>
+                  </DialogHeader>
+
+                  <div className="grid gap-4">
+                    <div className="grid gap-3">
+                      <Label className="text-red-500">
+                        Type "Delete/{updatedProfile.firstName}" to confirm
+                      </Label>
+                      <Input
+                        placeholder="Type here"
+                        onChange={handleDeleteInput}
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+
+                    <Button
+                      type="submit"
+                      className="bg-red-500 hover:bg-red-600"
+                      disabled={!isDeleteMatched}
+                      onClick={handleDeleteSubmit}
+                    >
+                      Delete
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </form>
+            </Dialog>
+            <Dialog>
+              <form onSubmit={handlePasswordSubmit}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">Change Password</Button>
+                </DialogTrigger>
+
+                <DialogContent className="sm:max-w-[425px]" aria-describedby="change-password-description">
+                  <DialogHeader>
+                    <DialogTitle>Change Password</DialogTitle>
+                  </DialogHeader>
+
+                  <div className="grid gap-4">
+                    {passwordError && (
+                      <p className="text-red-500 text-sm">{passwordError}</p>
+                    )}
+
+                    {/* Current Password */}
+                    <div className="grid gap-2">
+                      <Label>Current Password</Label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword.current ? "text" : "password"}
+                          value={passwordData.currentPassword}
+                          onChange={(e) =>
+                            setPasswordData((p) => ({
+                              ...p,
+                              currentPassword: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-3"
+                          onClick={() =>
+                            setShowPassword((p) => ({
+                              ...p,
+                              current: !p.current,
+                            }))
+                          }
+                        >
+                          {showPassword.current ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* New Password */}
+                    <div className="grid gap-2">
+                      <Label>New Password</Label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword.new ? "text" : "password"}
+                          value={passwordData.newPassword}
+                          onChange={(e) =>
+                            setPasswordData((p) => ({
+                              ...p,
+                              newPassword: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-3"
+                          onClick={() =>
+                            setShowPassword((p) => ({ ...p, new: !p.new }))
+                          }
+                        >
+                          {showPassword.new ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div className="grid gap-2">
+                      <Label>Confirm Password</Label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword.confirm ? "text" : "password"}
+                          value={passwordData.confirmPassword}
+                          onChange={(e) =>
+                            setPasswordData((p) => ({
+                              ...p,
+                              confirmPassword: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-3"
+                          onClick={() =>
+                            setShowPassword((p) => ({
+                              ...p,
+                              confirm: !p.confirm,
+                            }))
+                          }
+                        >
+                          {showPassword.confirm ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+
+                    <Button
+                      type="submit"
+                      className="bg-red-500 hover:bg-red-600"
+                      disabled={isChanging}
+                      onClick={handlePasswordSubmit}
+                    >
+                      {isChanging ? "Changing..." : "Change Password"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </form>
+            </Dialog>
+          
+          
+            
+          </div>
         </div>
       </div>
     </div>

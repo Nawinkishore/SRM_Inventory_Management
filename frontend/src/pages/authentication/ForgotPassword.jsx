@@ -7,20 +7,19 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForgotPassword } from '../../features/auth/hooks/usePassword';
+import { toast } from 'sonner';
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
   const { mutate: forgotPassword } = useForgotPassword();
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage({ type: '', text: '' });
 
     forgotPassword(email,{
       onSuccess: (data) => {
-        setMessage({ type: 'success', text: data.message });
+        toast.success(data.message || 'Reset instructions sent to your email!');
         setLoading(false);}
     })
   };

@@ -12,6 +12,7 @@ import Login from "./pages/authentication/Login";
 import ForgotPassword from "./pages/authentication/ForgotPassword";
 import VerifyOTP from "./pages/authentication/VerifyOTP";
 import ResetPassword from "./pages/authentication/ResetPassword";
+import { Toaster } from "sonner";
 
 function App() {
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
@@ -20,7 +21,10 @@ function App() {
   if (loading) return <p>Loading...</p>;
 
   return (
+    <>
+    <Toaster position="top-right" richColors />
     <Routes>
+      
       <Route
         path="/"
         element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
@@ -51,6 +55,7 @@ function App() {
         <Route path="invoice" element={<InvoiceGenerator />} />
       </Route>
     </Routes>
+    </>
   );
 }
 

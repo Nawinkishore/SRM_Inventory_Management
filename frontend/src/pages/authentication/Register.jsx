@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRegister } from '@/features/auth/hooks/useRegister';
+import { toast } from 'sonner';
 const Register = () => {
   const {mutate : register ,isLoading,isError,error} = useRegister();
   const navigate = useNavigate();
@@ -26,11 +27,11 @@ const Register = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage({ type: '', text: '' });
 
     register(formData, {
       onSuccess: (data) => {
-        setMessage({ type: 'success', text: 'Registration successful!' });
+        toast.success(data.message || 'Registration successful! Please verify your email.');
+        setLoading(false);
         localStorage.setItem("userEmail", data.user.email);
         setTimeout(() => navigate('/verify-otp'), 1500);
       },

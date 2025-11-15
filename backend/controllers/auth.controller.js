@@ -272,6 +272,50 @@ export const checkAuth = async (req, res) => {
         return res.status(400).json({ success: false, message: error.message });
     }
 };
+// Delete Account
+export const deleteAccount = async (req, res) => {
+    const userId = req.userId;
+
+    try {
+        // Delete user profile
+        await Profile.findOneAndDelete({ userId });
+        // Delete user account
+        await User.findByIdAndDelete(userId);
+        // Clear authentication cookie
+        res.clearCookie('token');   
+        return res.status(200).json({ success: true, message: "Account deleted successfully" });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+export const changePassword = async (req, res) => {
+
+    const {userId, currentPassword, newPassword } = req.body;
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ success: false, message: "Current password is incorrect" });
+        }
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+        return res.status(200).json({ success: true, message: "Password changed successfully" });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+
+}
+
+
+
+
+
+
+
 // ---------------------------------------------
 // GET PROFILE
 // ---------------------------------------------
@@ -316,3 +360,5 @@ export const editProfile = async (req, res) => {
         return res.status(400).json({ success: false, message: error.message });
     }
 };
+
+
