@@ -7,6 +7,7 @@ dotenv.config();
 import { connectDb } from "./db/connectDb.js";
 import authRoutes from "./routes/auth.route.js";
 import productRoutes from "./routes/product.route.js";
+import excelRoutes from "./routes/excel.route.js";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -26,3 +27,4 @@ app.listen(PORT, () => {
 });   
 app.use('/api/auth',authRoutes)
 app.use('/api/products', productRoutes);
+app.use('/api/excel', excelRoutes);
