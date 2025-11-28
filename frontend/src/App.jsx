@@ -13,6 +13,7 @@ import ForgotPassword from "./pages/authentication/ForgotPassword";
 import VerifyOTP from "./pages/authentication/VerifyOTP";
 import ResetPassword from "./pages/authentication/ResetPassword";
 import Excel from "./pages/dashboard/Excel";
+import InvoiceList from "./pages/dashboard/InvoiceList";
 import { Toaster } from "sonner";
 
 function App() {
@@ -55,6 +56,7 @@ function App() {
         <Route path="profile" element={<Profile />} />
         <Route path="invoice" element={<InvoiceGenerator />} />
         <Route path="excel" element={<Excel />} />
+        <Route path="invoices" element={<InvoiceList />} />
       </Route>
     </Routes>
     </>

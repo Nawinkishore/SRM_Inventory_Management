@@ -2,7 +2,7 @@
     {
       "compilerOptions": {
         // ... other options
-        "baseUrl": ".",
+        // "baseUrl": ".",
         "paths": {
           "@/*": ["./src/*"] // Assuming your components are in a 'src' folder
         }

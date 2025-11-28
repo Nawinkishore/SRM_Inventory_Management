@@ -8,23 +8,32 @@ import { connectDb } from "./db/connectDb.js";
 import authRoutes from "./routes/auth.route.js";
 import productRoutes from "./routes/product.route.js";
 import excelRoutes from "./routes/excel.route.js";
+import invoiceRoutes from "./routes/invoice.route.js";
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Middlewares
+app.use(cors({
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    credentials: true,
+}));
+app.use(express.json());
+app.use(cookieParser());
+
+// Default Route
 app.get("/", (req, res) => {
   res.send("Hello, World!");
 });
 
-app.use(cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173", // frontend URL
-    credentials: true, // to allow cookies to be sent
-}));
-app.use(express.json()); // Middleware to parse JSON request bodies
-app.use(cookieParser());  // Middleware to parse cookies
-app.listen(PORT, () => {
-    connectDb();
-    console.log(`Server is running on http://localhost:${PORT}`);
-});   
-app.use('/api/auth',authRoutes)
+// API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/excel', excelRoutes);
+app.use('/api/invoices', invoiceRoutes);
+
+// Start Server
+app.listen(PORT, () => {
+    connectDb();
+    console.log(`Server running on http://localhost:${PORT}`);
+});
