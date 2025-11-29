@@ -136,11 +136,11 @@ export const login = async (req, res) => {
             },
             { new: true }
         );
-
         return res.status(200).json({
             success: true,
             message: "Logged in successfully",
             user: { ...user._doc, password: undefined },
+            profile
         });
 
     } catch (error) {

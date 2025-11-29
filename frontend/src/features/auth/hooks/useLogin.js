@@ -14,9 +14,11 @@ export const useLogin = () => {
       return data;
     },
     onSuccess: (data) => {
+      
       dispatch(
         setAuthData({
           user: data.user,
+          profile: data.profile,
         })
       );
       toast.success(data.message || "Login successful!");
