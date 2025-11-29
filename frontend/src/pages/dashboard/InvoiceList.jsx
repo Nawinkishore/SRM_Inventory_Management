@@ -1,5 +1,5 @@
 // File: src/pages/InvoiceList.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Search, Eye, Download } from "lucide-react";
 import { useGetInvoices } from "@/features/invoice/useInvoice";
 import { useSelector } from "react-redux";
@@ -24,15 +24,22 @@ const OWNER_ADDRESS = {
 const InvoiceList = () => {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Get invoices from Redux store
-  const { invoices, loading: reduxLoading } = useSelector((state) => state.invoice);
-  
-  // Fetch invoices with React Query
+  const { invoices = [], loading: reduxLoading } = useSelector(
+    (state) => state.invoice
+  );
+
+  // Fetch invoices with React Query (keeps your existing behavior)
+  // If your useGetInvoices already returns the entire list, you can use it for refetching/search.
   const { isLoading, isError, error, refetch } = useGetInvoices(searchQuery);
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [autoDownload, setAutoDownload] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [invoicesPerPage, setInvoicesPerPage] = useState(10); // renders 10 invoices per page
 
   // Combine loading states
   const loading = isLoading || reduxLoading;
@@ -54,6 +61,11 @@ const InvoiceList = () => {
       setSearchQuery("");
     }
   }, [searchInput]);
+
+  // Reset page whenever searchQuery or invoices change (so user sees first page of results)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, invoices.length]);
 
   // View invoice (no auto-download)
   const handleViewInvoice = (invoice) => {
@@ -94,6 +106,66 @@ const InvoiceList = () => {
     }).format(amount);
   };
 
+  // ========== Pagination logic ==========
+  // Optionally filter client-side based on searchQuery (if server already filters, you can skip this)
+  const filteredInvoices = useMemo(() => {
+    if (!searchQuery) return invoices;
+    const q = searchQuery.toString().toLowerCase();
+    return invoices.filter((inv) => {
+      const fields = [
+        inv.invoiceNumber,
+        inv.customerName,
+        inv.contactNumber,
+        // add other fields if needed
+      ]
+        .filter(Boolean)
+        .map((v) => v.toString().toLowerCase());
+      return fields.some((f) => f.includes(q));
+    });
+  }, [invoices, searchQuery]);
+
+  const totalInvoices = filteredInvoices.length;
+  const totalPages = Math.max(1, Math.ceil(totalInvoices / invoicesPerPage));
+  const startIdx = (currentPage - 1) * invoicesPerPage;
+  const endIdx = startIdx + invoicesPerPage;
+  const paginatedInvoices = filteredInvoices.slice(startIdx, endIdx);
+
+  // helper to change page safely
+  const gotoPage = (page) => {
+    const p = Math.min(Math.max(1, page), totalPages);
+    setCurrentPage(p);
+  };
+
+  // Generate a compact list of page numbers (e.g., 1 ... 4 5 6 ... 10)
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 7;
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+      return pages;
+    }
+    // always show first and last, and a window around current page
+    pages.push(1);
+    let left = Math.max(2, currentPage - 2);
+    let right = Math.min(totalPages - 1, currentPage + 2);
+
+    if (currentPage <= 3) {
+      left = 2;
+      right = 5;
+    }
+    if (currentPage >= totalPages - 2) {
+      left = totalPages - 4;
+      right = totalPages - 1;
+    }
+    if (left > 2) pages.push("left-ellipsis");
+    for (let i = left; i <= right; i++) pages.push(i);
+    if (right < totalPages - 1) pages.push("right-ellipsis");
+    pages.push(totalPages);
+    return pages;
+  };
+
+  // =======================================
+
   return (
     <>
       <div className="min-h-screen bg-gray-50 p-6">
@@ -103,14 +175,12 @@ const InvoiceList = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Invoice Management
             </h1>
-            <p className="text-gray-600">
-              Search and manage all your invoices
-            </p>
+            <p className="text-gray-600">Search and manage all your invoices</p>
           </div>
 
           {/* Search Bar */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
               <div className="flex-1">
                 <input
                   type="text"
@@ -154,7 +224,7 @@ const InvoiceList = () => {
                   Retry
                 </button>
               </div>
-            ) : invoices.length === 0 ? (
+            ) : totalInvoices === 0 ? (
               <div className="text-center py-16">
                 <Search size={48} className="mx-auto text-gray-300 mb-4" />
                 <p className="text-gray-600 text-lg font-medium mb-2">
@@ -193,9 +263,9 @@ const InvoiceList = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {invoices.map((invoice) => (
+                      {paginatedInvoices.map((invoice) => (
                         <tr
-                          key={invoice._id}
+                          key={invoice._id || invoice.invoiceNumber}
                           className="hover:bg-gray-50 transition-colors"
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -247,12 +317,83 @@ const InvoiceList = () => {
                   </table>
                 </div>
 
-                {/* Summary */}
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    Showing <span className="font-semibold">{invoices.length}</span>{" "}
-                    {invoices.length === 1 ? "invoice" : "invoices"}
-                  </p>
+                {/* Pagination Controls */}
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="text-sm text-gray-600">
+                    Showing{" "}
+                    <span className="font-semibold">
+                      {startIdx + 1}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-semibold">
+                      {Math.min(endIdx, totalInvoices)}
+                    </span>{" "}
+                    of <span className="font-semibold">{totalInvoices}</span>{" "}
+                    invoices
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Page size selector (optional) */}
+                    <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
+                      <label>Per page:</label>
+                      <select
+                        value={invoicesPerPage}
+                        onChange={(e) => {
+                          setInvoicesPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="px-2 py-1 border rounded"
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => gotoPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 rounded border disabled:opacity-50"
+                        aria-label="Previous page"
+                      >
+                        Prev
+                      </button>
+
+                      {/* Page numbers */}
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers().map((p, idx) =>
+                          p === "left-ellipsis" || p === "right-ellipsis" ? (
+                            <span key={p + idx} className="px-2 text-sm">
+                              &hellip;
+                            </span>
+                          ) : (
+                            <button
+                              key={p}
+                              onClick={() => gotoPage(p)}
+                              className={`px-3 py-1 rounded ${
+                                p === currentPage
+                                  ? "bg-blue-600 text-white"
+                                  : "border hover:bg-gray-100"
+                              } text-sm`}
+                              aria-current={p === currentPage ? "page" : false}
+                            >
+                              {p}
+                            </button>
+                          )
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => gotoPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 rounded border disabled:opacity-50"
+                        aria-label="Next page"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
