@@ -4,9 +4,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useSelector } from 'react-redux';
 
-export default function Navbar({ isSidebarOpen, setIsSidebarOpen, setActiveMenu, handleLogout }) {
+export default function Navbar({ isSidebarOpen, setIsSidebarOpen, handleLogout }) {
   const { user } = useSelector((state) => state.auth);
-  const { profile1 } = useSelector((state) => state.profile);
+  const { profile } = useSelector((state) => state.auth);
 
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -50,7 +50,7 @@ export default function Navbar({ isSidebarOpen, setIsSidebarOpen, setActiveMenu,
                 aria-haspopup="true"
               >
                 <img
-                  src={(profile1 && profile1.profileImage) || 'https://github.com/shadcn.png'}
+                  src={(profile && profile.profileImage) || 'https://github.com/shadcn.png'}
                   alt="User avatar"
                   className="w-10 h-10 rounded-full object-cover border"
                 />
@@ -63,7 +63,7 @@ export default function Navbar({ isSidebarOpen, setIsSidebarOpen, setActiveMenu,
                   <div className="p-4">
                     <div className="flex items-center gap-3">
                       <img
-                        src={(profile1 && profile1.profileImage) || 'https://github.com/shadcn.png'}
+                        src={(profile && profile.profileImage) || 'https://github.com/shadcn.png'}
                         alt="avatar"
                         className="w-12 h-12 rounded-full object-cover border"
                       />

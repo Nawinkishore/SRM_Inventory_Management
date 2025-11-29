@@ -1,7 +1,7 @@
 import api from "@/api/axios";
 import { useMutation } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
-import { setProfile } from "@/store/profile/profileSlice";
+import { setProfile } from "@/store/auth/authSlice";
 
 export const useGetProfile = () => {
   const dispatch = useDispatch();
@@ -15,7 +15,7 @@ export const useGetProfile = () => {
     },
 
     onSuccess: (data) => {
-      dispatch(setProfile(data.profile)); // <-- correct
+      dispatch(setProfile(data.profile));
     }
   });
 };

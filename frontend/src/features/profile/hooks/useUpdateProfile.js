@@ -1,7 +1,8 @@
 import api from "@/api/axios";
 import { useMutation } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
-import { setProfile } from "@/store/profile/profileSlice";
+import { setProfile } from "@/store/auth/authSlice";
+import { toast } from "sonner";
 
 export const useUpdateProfile = () => {
   const dispatch = useDispatch();
@@ -18,6 +19,11 @@ export const useUpdateProfile = () => {
 
     onSuccess: (data) => {
       dispatch(setProfile(data.profile));
+      toast.success("Profile updated successfully!");
     },
+
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to update profile");
+    }
   });
 };
