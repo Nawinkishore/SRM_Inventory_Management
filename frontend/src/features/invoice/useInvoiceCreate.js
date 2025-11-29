@@ -4,7 +4,7 @@ import api from "@/api/axios";
 export const useInvoiceCreate = () => {
     return useMutation({
         mutationFn: async (invoiceData) => {
-            const response = await api.post("/invoices/create", invoiceData, {
+            const response = await api.post("/invoice/create", invoiceData, {
                 withCredentials: true,
             });
             return response.data;

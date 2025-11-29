@@ -1,6 +1,8 @@
+// File: src/pages/InvoiceList.jsx
 import React, { useState, useEffect } from "react";
 import { Search, Eye, Download } from "lucide-react";
-import { useInvoices } from "@/features/invoice/useInvoiceGet";
+import { useGetInvoices } from "@/features/invoice/useInvoice";
+import { useSelector } from "react-redux";
 import InvoiceTemplate from "@/components/home/InvoiceTemplate";
 import logoImg from "@/assets/logo.jpg";
 import qrImg from "@/assets/qrcode.png";
@@ -22,10 +24,18 @@ const OWNER_ADDRESS = {
 const InvoiceList = () => {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: invoices = [], isLoading, isError, error } = useInvoices(searchQuery);
+  
+  // Get invoices from Redux store
+  const { invoices, loading: reduxLoading } = useSelector((state) => state.invoice);
+  
+  // Fetch invoices with React Query
+  const { isLoading, isError, error, refetch } = useGetInvoices(searchQuery);
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [autoDownload, setAutoDownload] = useState(false);
+
+  // Combine loading states
+  const loading = isLoading || reduxLoading;
 
   // Handle search
   const handleSearch = () => {
@@ -113,17 +123,18 @@ const InvoiceList = () => {
               </div>
               <button
                 onClick={handleSearch}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium flex items-center gap-2 shadow-sm"
+                disabled={loading}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Search size={18} />
-                Search
+                {loading ? "Searching..." : "Search"}
               </button>
             </div>
           </div>
 
           {/* Invoice Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            {isLoading ? (
+            {loading ? (
               <div className="flex flex-col justify-center items-center py-16">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
                 <p className="text-gray-600">Loading invoices...</p>
@@ -137,7 +148,7 @@ const InvoiceList = () => {
                   {error?.message || "An unknown error occurred"}
                 </p>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => refetch()}
                   className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Retry

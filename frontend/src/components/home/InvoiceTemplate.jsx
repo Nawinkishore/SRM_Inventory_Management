@@ -1,4 +1,4 @@
-// src/components/InvoiceTemplate.jsx
+// File: src/components/home/InvoiceTemplate.jsx
 import React, { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -117,12 +117,10 @@ export default function InvoiceTemplate({
 
       const element = printRef.current;
       
-      // Create wrapper with complete style reset
       const wrapper = document.createElement('div');
       wrapper.style.cssText = 'all: initial; position: absolute; left: -9999px; top: 0; font-family: Arial, sans-serif;';
       
       const cloned = element.cloneNode(true);
-      // Strip all classes from cloned element and children
       cloned.removeAttribute('class');
       cloned.querySelectorAll('*').forEach(el => el.removeAttribute('class'));
       
@@ -197,26 +195,24 @@ export default function InvoiceTemplate({
 
   if (!invoice) return null;
 
+  const containerStyle = {
+    all: 'initial',
+    display: 'block',
+    fontFamily: 'Arial, sans-serif',
+    background: '#ffffff',
+    padding: '20px',
+    width: '210mm',
+    minHeight: '297mm',
+    margin: '0 auto',
+    boxSizing: 'border-box',
+    color: '#000000',
+    fontSize: '12px',
+    lineHeight: '1.4'
+  };
+
   return (
     <div style={{ all: 'initial', fontFamily: 'Arial, sans-serif' }}>
-      {/* Invoice Content - Completely isolated from Tailwind */}
-      <div 
-        ref={printRef}
-        style={{
-          all: 'initial',
-          display: 'block',
-          fontFamily: 'Arial, sans-serif',
-          background: '#ffffff',
-          padding: '20px',
-          width: '210mm',
-          minHeight: '297mm',
-          margin: '0 auto',
-          boxSizing: 'border-box',
-          color: '#000000',
-          fontSize: '12px',
-          lineHeight: '1.4'
-        }}
-      >
+      <div ref={printRef} style={containerStyle}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px', borderBottom: '2px solid #000000', paddingBottom: '10px' }}>
           <div style={{ flex: '1' }}>
@@ -236,11 +232,7 @@ export default function InvoiceTemplate({
 
           <div style={{ width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #cccccc', flexShrink: '0' }}>
             {logoSrc ? (
-              <img 
-                src={logoSrc} 
-                alt="Logo" 
-                style={{ maxWidth: '95%', maxHeight: '95%', objectFit: 'contain', display: 'block' }}
-              />
+              <img src={logoSrc} alt="Logo" style={{ maxWidth: '95%', maxHeight: '95%', objectFit: 'contain', display: 'block' }} />
             ) : (
               <div style={{ fontWeight: '700', color: '#999999' }}>LOGO</div>
             )}
@@ -346,11 +338,7 @@ export default function InvoiceTemplate({
           
           <div style={{ width: '80px', height: '80px', flexShrink: '0' }}>
             {qrSrc && (
-              <img 
-                src={qrSrc} 
-                alt="QR" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-              />
+              <img src={qrSrc} alt="QR" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
             )}
           </div>
         </div>

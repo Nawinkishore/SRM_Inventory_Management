@@ -4,6 +4,7 @@ import { persistReducer, persistStore } from "redux-persist";
 import authReducer from "./auth/authSlice";
 import productReducer from "./product/productSlice";
 import profileReducer from "./profile/profileSlice";
+import invoiceReducer from "./invoices/invoiceSlice";
 const persistConfig = {
     key: 'root',
     storage,
@@ -14,6 +15,7 @@ const rootReducer = combineReducers({
     auth: authReducer,
     profile: profileReducer,
     products:productReducer,
+    invoice: invoiceReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

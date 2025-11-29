@@ -30,7 +30,7 @@ app.get("/", (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/excel', excelRoutes);
-app.use('/api/invoices', invoiceRoutes);
+app.use('/api/invoice', invoiceRoutes);
 
 // Start Server
 app.listen(PORT, () => {
