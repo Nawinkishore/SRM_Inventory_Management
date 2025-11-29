@@ -2,7 +2,6 @@ import express from 'express';
 import { 
   createInvoice, 
   getInvoices, 
-  getInvoiceById, 
   updateInvoice, 
   deleteInvoice 
 } from '../controllers/invoice.controller.js';
@@ -10,8 +9,7 @@ import {
 const router = express.Router();
 
 router.post('/create', createInvoice);
-router.get('/', getInvoices);
-router.get('/:id', getInvoiceById);
+router.get('/getInvoices', getInvoices);
 router.put('/:id', updateInvoice);
 router.delete('/:id', deleteInvoice);
 
