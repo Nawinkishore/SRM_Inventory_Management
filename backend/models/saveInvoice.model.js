@@ -14,6 +14,7 @@ const ItemSchema = new mongoose.Schema({
 });
 
 const InvoiceSchema = new mongoose.Schema({
+  UserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   invoiceNumber: String,
   invoiceDate: String,
   customerName: String,

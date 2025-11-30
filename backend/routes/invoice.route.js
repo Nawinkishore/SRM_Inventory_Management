@@ -1,18 +1,14 @@
-// routes/invoice.routes.js
-import express from 'express';
-import { 
-  createInvoice, 
-  getInvoices, 
-  updateInvoice, 
-  deleteInvoice 
-} from '../controllers/invoice.controller.js';
+// File: routes/invoice.routes.js
+import express from "express";
+import {
+  createInvoice,
+  getInvoices,
+} from "../controllers/invoice.controller.js";
 
 const router = express.Router();
 
-// Make sure routes are defined correctly
-router.post('/create', createInvoice);
-router.get('/getInvoices', getInvoices);
-router.put('/:id', updateInvoice);
-router.delete('/:id', deleteInvoice);
+router.post("/create", createInvoice);
+router.post("/getInvoices", getInvoices);
+
 
 export default router;

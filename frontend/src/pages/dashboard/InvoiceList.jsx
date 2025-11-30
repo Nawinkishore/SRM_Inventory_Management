@@ -1,12 +1,12 @@
 // File: src/pages/InvoiceList.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Search, Eye, Download } from "lucide-react";
-import { useGetInvoices } from "@/features/invoice/useInvoice";
-import { useSelector } from "react-redux";
 import InvoiceTemplate from "@/components/home/InvoiceTemplate";
 import logoImg from "@/assets/logo.jpg";
 import qrImg from "@/assets/qrcode.png";
-
+import { useGetInvoices } from "@/features/invoice/useInvoice";
+import { useSelector } from "react-redux";
+import { toast } from "sonner";
 const OWNER_ADDRESS = {
   name: "SRM MOTORS",
   addressLines: [
@@ -23,57 +23,36 @@ const OWNER_ADDRESS = {
 
 const InvoiceList = () => {
   const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  
-  // Get invoices from Redux store
-  const { invoices, loading: reduxLoading } = useSelector((state) => state.invoice);
-  
-  // Fetch invoices with React Query
-  const { isLoading, isError, error, refetch } = useGetInvoices(searchQuery);
-
+  const [invoices, setInvoices] = useState([]); // manage invoices locally
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [autoDownload, setAutoDownload] = useState(false);
-
-  // Combine loading states
-  const loading = isLoading || reduxLoading;
-
-  // Handle search
-  const handleSearch = () => {
-    setSearchQuery(searchInput.trim());
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
-  };
-
-  // Clear search when input is empty
-  useEffect(() => {
-    if (searchInput.trim() === "") {
-      setSearchQuery("");
-    }
-  }, [searchInput]);
-
-  // View invoice (no auto-download)
+  const { user } = useSelector((state) => state.auth);
+  const {mutate: fetchInvoices} = useGetInvoices();
+  useEffect(()=>{
+    fetchInvoices(user._id, {
+      onSuccess: (data) => {
+        setInvoices(data.invoices || []);
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || "Failed to fetch invoices");
+      },
+    });
+  },[])
   const handleViewInvoice = (invoice) => {
     setAutoDownload(false);
     setSelectedInvoice(invoice);
   };
 
-  // Download invoice (auto-download)
   const handleDownloadInvoice = (invoice) => {
     setAutoDownload(true);
     setSelectedInvoice(invoice);
   };
 
-  // Close modal
   const closeModal = () => {
     setSelectedInvoice(null);
     setAutoDownload(false);
   };
 
-  // Format helpers
   const formatDate = (dateString) => {
     if (!dateString) return "—";
     const date = new Date(dateString);
@@ -94,6 +73,17 @@ const InvoiceList = () => {
     }).format(amount);
   };
 
+  // Simple client-side filter (instant)
+  const filteredInvoices = (invoices || []).filter((inv) => {
+    if (!searchInput) return true;
+    const q = searchInput.toLowerCase();
+    return (
+      String(inv.invoiceNumber || "").toLowerCase().includes(q) ||
+      String(inv.customerName || "").toLowerCase().includes(q) ||
+      String(inv.contactNumber || "").toLowerCase().includes(q)
+    );
+  });
+
   return (
     <>
       <div className="min-h-screen bg-gray-50 p-6">
@@ -103,9 +93,7 @@ const InvoiceList = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Invoice Management
             </h1>
-            <p className="text-gray-600">
-              Search and manage all your invoices
-            </p>
+            <p className="text-gray-600">Search and manage all your invoices</p>
           </div>
 
           {/* Search Bar */}
@@ -114,56 +102,28 @@ const InvoiceList = () => {
               <div className="flex-1">
                 <input
                   type="text"
-                  placeholder="Search by Phone Number, Customer Name, or Invoice Number"
+                  placeholder="Search by phone, customer or invoice no."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
               </div>
-              <button
-                onClick={handleSearch}
-                disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Search size={18} />
-                {loading ? "Searching..." : "Search"}
-              </button>
+              
             </div>
           </div>
 
           {/* Invoice Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            {loading ? (
-              <div className="flex flex-col justify-center items-center py-16">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
-                <p className="text-gray-600">Loading invoices...</p>
-              </div>
-            ) : isError ? (
-              <div className="text-center py-16">
-                <div className="text-red-600 text-lg font-semibold mb-2">
-                  Failed to load invoices
-                </div>
-                <p className="text-gray-500">
-                  {error?.message || "An unknown error occurred"}
-                </p>
-                <button
-                  onClick={() => refetch()}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : invoices.length === 0 ? (
+            {filteredInvoices.length === 0 ? (
               <div className="text-center py-16">
                 <Search size={48} className="mx-auto text-gray-300 mb-4" />
                 <p className="text-gray-600 text-lg font-medium mb-2">
                   No invoices found
                 </p>
                 <p className="text-gray-400">
-                  {searchQuery
-                    ? "Try adjusting your search criteria"
-                    : "Start by searching for an invoice"}
+                  {invoices.length === 0
+                    ? "No invoices added yet"
+                    : "Try adjusting your search"}
                 </p>
               </div>
             ) : (
@@ -193,9 +153,9 @@ const InvoiceList = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {invoices.map((invoice) => (
+                      {filteredInvoices.map((invoice) => (
                         <tr
-                          key={invoice._id}
+                          key={invoice._id || invoice.invoiceNumber}
                           className="hover:bg-gray-50 transition-colors"
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -250,8 +210,11 @@ const InvoiceList = () => {
                 {/* Summary */}
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                   <p className="text-sm text-gray-600">
-                    Showing <span className="font-semibold">{invoices.length}</span>{" "}
-                    {invoices.length === 1 ? "invoice" : "invoices"}
+                    Showing{" "}
+                    <span className="font-semibold">
+                      {filteredInvoices.length}
+                    </span>{" "}
+                    {filteredInvoices.length === 1 ? "invoice" : "invoices"}
                   </p>
                 </div>
               </>

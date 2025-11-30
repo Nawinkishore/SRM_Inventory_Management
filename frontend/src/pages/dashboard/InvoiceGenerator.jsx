@@ -24,6 +24,8 @@ const OWNER_ADDRESS = {
 
 const InvoiceGenerator = () => {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
+
   const productState = useSelector(
     (s) => s.products || { items: [], loading: false, error: null }
   );
@@ -240,6 +242,7 @@ const InvoiceGenerator = () => {
   };
   const saveInvoiceToDB = () => {
     const payload = {
+      UserId: user._id,
       invoiceNumber,
       invoiceDate,
       customerName: customerInfo.name,

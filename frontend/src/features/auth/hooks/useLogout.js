@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import api from "../../../api/axios";
 import { useDispatch } from "react-redux";
 import { clearAuth } from "../../../store/auth/authSlice";
-
+import { clearInvoices } from "@/store/invoices/invoiceSlice";
 export const useLogout = () => {
   const dispatch = useDispatch();
 
@@ -12,6 +12,7 @@ export const useLogout = () => {
     },
     onSuccess: () => {
       dispatch(clearAuth());
+      dispatch(clearInvoices());
     },
   });
 };
