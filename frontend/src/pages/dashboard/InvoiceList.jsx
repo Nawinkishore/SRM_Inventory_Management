@@ -1,10 +1,11 @@
 // File: src/pages/InvoiceList.jsx
 import React, { useEffect, useState } from "react";
-import { Search, Eye, Download } from "lucide-react";
+import { Search, Eye, Download, Delete } from "lucide-react";
 import InvoiceTemplate from "@/components/home/InvoiceTemplate";
 import logoImg from "@/assets/logo.jpg";
 import qrImg from "@/assets/qrcode.png";
 import { useGetInvoices } from "@/features/invoice/useInvoice";
+import { useDeleteInvoice } from "@/features/invoice/useInvoice";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
 const OWNER_ADDRESS = {
@@ -28,6 +29,8 @@ const InvoiceList = () => {
   const [autoDownload, setAutoDownload] = useState(false);
   const { user } = useSelector((state) => state.auth);
   const {mutate: fetchInvoices} = useGetInvoices();
+
+  const {mutate: removeInvoice} = useDeleteInvoice();
   useEffect(()=>{
     fetchInvoices(user._id, {
       onSuccess: (data) => {
@@ -52,6 +55,17 @@ const InvoiceList = () => {
     setSelectedInvoice(null);
     setAutoDownload(false);
   };
+
+  const deleteInvoice = (invoiceId) => {
+    removeInvoice(invoiceId,{
+      onSuccess: () => {
+        setInvoices((prevInvoices) =>
+          prevInvoices.filter((inv) => inv._id !== invoiceId)
+        );
+        toast.success("Invoice deleted successfully");
+      }
+    });
+  }
 
   const formatDate = (dateString) => {
     if (!dateString) return "—";
@@ -192,12 +206,9 @@ const InvoiceList = () => {
                               >
                                 <Eye size={18} />
                               </button>
-                              <button
-                                onClick={() => handleDownloadInvoice(invoice)}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                title="Download PDF"
+                              <button className="text-red-500 hover:cursor-pointer"
                               >
-                                <Download size={18} />
+                                <Delete size={18}  onClick={() => deleteInvoice(invoice._id)}/>
                               </button>
                             </div>
                           </td>

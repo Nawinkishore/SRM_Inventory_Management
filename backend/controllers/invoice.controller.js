@@ -18,3 +18,22 @@ export const getInvoices = async (req,res)=>{
     return res.status(500).json({ success: false, message: "Failed to fetch invoices", error: error.message });
   }
 }
+
+export const deleteInvoice = async (req, res) => {
+  const { invoiceId } = req.params;
+  try {
+    await Invoice.findByIdAndDelete(invoiceId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice deleted successfully",
+      invoiceId,  
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete invoice",
+      error: error.message,
+    });
+  }
+};

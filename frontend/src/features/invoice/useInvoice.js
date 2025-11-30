@@ -1,6 +1,6 @@
 import api from "@/api/axios";
 import { useMutation } from "@tanstack/react-query";
-import { setInvoices } from "@/store/invoices/invoiceSlice";
+import { setInvoices,deleteInvoice } from "@/store/invoices/invoiceSlice";
 import { useDispatch } from "react-redux";
 import {toast} from "sonner";
 export const useGetInvoices = () => {
@@ -22,6 +22,25 @@ export const useGetInvoices = () => {
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || "Failed to fetch invoices");
+    }
+  });
+};
+
+export const useDeleteInvoice = () => {
+  const dispatch = useDispatch();
+  return useMutation({
+    mutationFn: async (invoiceId) => {
+      const { data } = await api.delete(`/invoice/delete/${invoiceId}`, {
+        withCredentials: true,
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      dispatch(deleteInvoice(data.invoiceId));  
+      // toast.success("Invoice deleted successfully");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to delete invoice");
     }
   });
 };
