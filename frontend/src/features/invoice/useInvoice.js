@@ -26,6 +26,21 @@ export const useGetInvoices = () => {
   });
 };
 
+export const useSearchInvoices = () => {
+  return useMutation({
+    mutationFn: async ({ UserId, query }) => {
+      const { data } = await api.post(
+        "/invoice/search",
+        { UserId, query },
+        {
+          withCredentials: true,
+        }
+      );
+      return data;
+    }
+  });
+}
+
 export const useDeleteInvoice = () => {
   const dispatch = useDispatch();
   return useMutation({

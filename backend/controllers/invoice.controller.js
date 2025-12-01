@@ -19,6 +19,32 @@ export const getInvoices = async (req,res)=>{
   }
 }
 
+export const getSearchedInvoice = async (req, res) => {
+  const { UserId, query } = req.body;
+  try{
+    const regex = new RegExp(query, 'i'); // Case-insensitive regex for matching
+    const invoices = await Invoice.find({
+      UserId,
+      $or: [
+        { invoiceNumber: regex },
+        { customerName: regex },
+        { contactNumber: regex },
+      ],
+    });
+    return res.status(200).json({
+      success: true,
+      invoices,
+    });
+  }
+  catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to search invoices",
+      error: error.message,
+    });
+  }
+}
+
 export const deleteInvoice = async (req, res) => {
   const { invoiceId } = req.params;
   try {
