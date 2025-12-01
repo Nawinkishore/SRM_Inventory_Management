@@ -176,7 +176,7 @@ const InvoiceList = () => {
               
             </div>
             <div>
-                <Funnel size={20} className="text-gray-400 ml-4" onClick={setFilterOpen(()=>!filterOpen)} />
+                <Funnel size={20} className="text-gray-400 ml-4" onClick={() => setFilterOpen((prev) => !prev)} />
               </div>
             {/* Search Status */}
             {isSearching && (
