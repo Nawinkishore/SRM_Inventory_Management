@@ -3,6 +3,12 @@ import Purchase from "../models/purchase.model.js";
 export const createPurchase = async (req,res)=>{
     const {userId, orderName, items} = req.body;
     try {
+        if (!userId || !items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({message: "Invalid purchase data"});
+        }
+        if (!orderName) {
+            return res.status(400).json({message: "Order name is required"});
+        }
         const existingPurchase = await Purchase.findOne({orderName});
         if(existingPurchase){
             return  res.status(400).json({message: "Purchase with this order name already exists"});
