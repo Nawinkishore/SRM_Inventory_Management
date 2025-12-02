@@ -1,33 +1,59 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Eye, Search, Trash } from "lucide-react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
-import { usePurchaseList, useDeletePurchase } from "@/features/purchase/usePurchase";
+import {
+  setPurchases,
+  removePurchaseState,
+} from "@/store/purchases/purchaseSlice";
+
+import {
+  usePurchaseList,
+  useDeletePurchase,
+} from "@/features/purchase/usePurchase";
 import { toast } from "sonner";
 
 const Purchase = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+
+  const purchasesState = useSelector((state) => state.purchase.purchases);
 
   const { data: purchases = [], isLoading } = usePurchaseList(user?._id);
 
+  const { mutate: deletePurchase, isLoading: deleteLoading } =
+    useDeletePurchase(user?._id);
 
-  const { mutate: deletePurchase, isLoading: deleteLoading } = useDeletePurchase();
+  // Sync React Query → Redux
+  // Sync React Query -> Redux without infinite loop
+  useEffect(() => {
+    if (!purchases) return;
+
+    // compare only changes
+    if (purchases.length !== purchasesState.length) {
+      dispatch(setPurchases(purchases));
+    }
+  }, [purchases, purchasesState.length, dispatch]);
 
   const [query, setQuery] = useState("");
 
-  // Filter results with useMemo
+  // Filter results
   const filteredPurchases = useMemo(() => {
-    return purchases.filter((order) =>
+    return purchasesState.filter((order) =>
       order.orderName.toLowerCase().includes(query.toLowerCase())
     );
-  }, [query, purchases]);
+  }, [query, purchasesState]);
 
   // Delete Handler
   const handleDelete = useCallback(
     (purchaseId) => {
-      if (!window.confirm("Are you sure you want to delete this order?")) return;
+      if (!window.confirm("Are you sure you want to delete this order?"))
+        return;
+
+      // Remove from UI immediately
+      dispatch(removePurchaseState(purchaseId));
 
       deletePurchase(purchaseId, {
         onSuccess: () => {
@@ -38,7 +64,7 @@ const Purchase = () => {
         },
       });
     },
-    [deletePurchase]
+    [deletePurchase, dispatch]
   );
 
   return (
@@ -120,9 +146,9 @@ const Purchase = () => {
             <thead>
               <tr className="bg-gray-100">
                 <th className="py-2 px-3">Order Name</th>
-                <th className="py-2 px-3">Items Count</th>
-                <th className="py-2 px-3">Total Amount</th>
-                <th className="py-2 px-3 whitespace-nowrap">Created On</th>
+                <th className="py-2 px-3">Items</th>
+                <th className="py-2 px-3">Total</th>
+                <th className="py-2 px-3">Created</th>
                 <th className="py-2 px-3 text-center">Actions</th>
               </tr>
             </thead>
@@ -134,10 +160,7 @@ const Purchase = () => {
                 );
 
                 return (
-                  <tr
-                    key={purchase._id}
-                    className="border-b hover:bg-gray-50 transition"
-                  >
+                  <tr key={purchase._id} className="border-b hover:bg-gray-50">
                     <td className="py-2 px-3 font-medium text-gray-800">
                       {purchase.orderName}
                     </td>
@@ -154,21 +177,19 @@ const Purchase = () => {
                       {new Date(purchase.createdAt).toLocaleDateString()}
                     </td>
 
-                    <td className="py-2 px-3 flex items-center justify-center gap-4">
-                      <Link
-                        to={`/dashboard/purchase/${purchase._id}`}
-                        className="hover:scale-110 transition"
-                      >
-                        <Eye size={20} className="text-blue-600" />
+                    <td className="py-2 px-3 flex gap-4 justify-center items-center">
+                      <Link to={`/dashboard/purchase/${purchase._id}`}>
+                        <Eye
+                          size={20}
+                          className="text-blue-600 hover:scale-110"
+                        />
                       </Link>
 
-                      <button
-                        disabled={deleteLoading}
+                      <Trash
+                        size={20}
+                        className="text-red-600 cursor-pointer hover:scale-110"
                         onClick={() => handleDelete(purchase._id)}
-                        className="hover:scale-110 transition cursor-pointer"
-                      >
-                        <Trash size={20} className="text-red-600" />
-                      </button>
+                      />
                     </td>
                   </tr>
                 );

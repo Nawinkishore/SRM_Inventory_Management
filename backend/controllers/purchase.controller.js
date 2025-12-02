@@ -37,6 +37,37 @@ export const getPurchaseList = async (req,res)=>{
     }
 }
 
+export const getPurchaseById = async (req,res)=>{
+    const {purchaseId} = req.params;
+    try {
+        const purchase = await Purchase.findById(purchaseId);
+        if(!purchase){
+            return res.status(404).json({message: "Purchase not found"});
+        }
+        res.status(200).json({purchase});
+    } catch (error) {
+        return res.status(500).json({message: "Server Error", error: error.message});
+    }
+}
+
+export const updatePurchaseById = async (req,res)=>{
+    const {purchaseId} = req.params;
+    const {orderName, items} = req.body;
+    try{
+        const updatedPurchase = await Purchase.findByIdAndUpdate(
+            purchaseId,
+            { orderName, items },
+            { new: true }
+        );
+        if(!updatedPurchase){
+            return res.status(404).json({message: "Purchase not found"});
+        }
+        res.status(200).json({message: "Purchase updated successfully", purchase: updatedPurchase});
+    } catch (error) {
+        return res.status(500).json({message: "Server Error", error: error.message});
+    }
+}
+
 export const deletePurchasebyId = async (req,res)=>{
     const {purchaseId} = req.params;
     try {
