@@ -20,3 +20,26 @@ export const createPurchase = async (req,res)=>{
         return res.status(500).json({message: "Server Error", error: error.message});
     }
 }
+
+export const getPurchaseList = async (req,res)=>{
+    const {userId} = req.params;
+    try {
+        const purchases = await Purchase.find({userId}).sort({createdAt: -1});
+        res.status(200).json({purchases});
+    } catch (error) {
+        return res.status(500).json({message: "Server Error", error: error.message});
+    }
+}
+
+export const deletePurchasebyId = async (req,res)=>{
+    const {purchaseId} = req.params;
+    try {
+        const deletedPurchase = await Purchase.findByIdAndDelete(purchaseId);
+        if(!deletedPurchase){
+            return res.status(404).json({message: "Purchase not found"});
+        }
+        res.status(200).json({message: "Purchase deleted successfully"});
+    } catch (error) {
+        return res.status(500).json({message: "Server Error", error: error.message});
+    }
+}
