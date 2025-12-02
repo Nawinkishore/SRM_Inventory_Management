@@ -12,6 +12,10 @@ import {
 } from "@/components/ui/table";
 import { Plus, Trash } from "lucide-react";
 
+import { useCreatePurchase } from "@/features/purchase/usePurchase";
+import { toast } from "sonner";
+import { useSelector } from "react-redux";
+
 const configureColumns = [
   {
     key: "itemNumber",
@@ -25,9 +29,11 @@ const configureColumns = [
 ];
 
 const AddStockPage = () => {
+  const { user } = useSelector((state) => state.auth);
   const [rows, setRows] = useState([
     { itemNumber: "", quantity: "", price: "", total: "" },
   ]);
+  const { mutate: createPurchase, loading } = useCreatePurchase();
   const [orderName, setOrderName] = useState("");
   const date = new Date().toLocaleDateString();
 
@@ -53,6 +59,26 @@ const AddStockPage = () => {
 
   const removeRow = (index) =>
     setRows((prev) => prev.filter((_, i) => i !== index));
+
+  const handleSaveOrder = () => {
+    const purchaseData = {
+      userId: user._id,
+      orderName,
+      items: rows,
+    };
+    createPurchase(purchaseData, {
+      onSuccess: (data) => {
+        toast.success(data.message || "Purchase order created successfully");
+        setOrderName("");
+        setRows([{ itemNumber: "", quantity: "", price: "", total: "" }]);
+      },
+      onError: (error) => {
+        toast.error(
+          error.response?.data?.message || "Failed to create purchase order"
+        );
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen p-4 bg-gray-100">
@@ -204,21 +230,30 @@ const AddStockPage = () => {
         </div>
 
         {/* Add Buttons */}
-        <div className="flex justify-center mt-6">
-          <button
-            onClick={addRows}
-            className="md:hidden w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700
+        <div className="flex justify-center mt-6 gap-2">
+          <div>
+            <button
+              onClick={addRows}
+              className="md:hidden w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700
                    text-white flex items-center justify-center shadow-lg transition"
-          >
-            <Plus />
-          </button>
+            >
+              <Plus />
+            </button>
 
-          <button
-            onClick={addRows}
-            className="hidden md:flex items-center gap-2 bg-blue-600 hover:bg-blue-700
+            <button
+              onClick={addRows}
+              className="hidden md:flex items-center gap-2 bg-blue-600 hover:bg-blue-700
                    text-white px-4 py-2 rounded-md shadow-md transition"
+            >
+              <Plus size={18} /> Add Row
+            </button>
+          </div>
+          <button
+            className=" px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 cursor-pointer
+                   text-white flex items-center justify-center shadow-lg transition"
+                   onClick={handleSaveOrder}
           >
-            <Plus size={18} /> Add Row
+            Save Order
           </button>
         </div>
       </div>
