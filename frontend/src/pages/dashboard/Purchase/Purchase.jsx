@@ -5,6 +5,25 @@ import { Eye, Search, Trash } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+import {
   setPurchases,
   removePurchaseState,
 } from "@/store/purchases/purchaseSlice";
@@ -13,25 +32,32 @@ import {
   usePurchaseList,
   useDeletePurchase,
 } from "@/features/purchase/usePurchase";
+
 import { toast } from "sonner";
 
 const Purchase = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-
   const purchasesState = useSelector((state) => state.purchase.purchases);
 
-  const { data: purchases = [], isLoading } = usePurchaseList(user?._id);
+  // pagination state
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
-  const { mutate: deletePurchase, isLoading: deleteLoading } =
-    useDeletePurchase(user?._id);
+  const { data, isLoading } = usePurchaseList({
+    userId: user?._id,
+    page,
+    limit,
+  });
 
-  // Sync React Query → Redux
-  // Sync React Query -> Redux without infinite loop
+  const purchases = data?.purchases || [];
+  const pagination = data?.pagination;
+
+  const { mutate: deletePurchase } = useDeletePurchase(user?._id);
+
+  // sync into redux
   useEffect(() => {
     if (!purchases) return;
-
-    // compare only changes
     if (purchases.length !== purchasesState.length) {
       dispatch(setPurchases(purchases));
     }
@@ -46,30 +72,31 @@ const Purchase = () => {
     );
   }, [query, purchasesState]);
 
-  // Delete Handler
   const handleDelete = useCallback(
     (purchaseId) => {
       if (!window.confirm("Are you sure you want to delete this order?"))
         return;
 
-      // Remove from UI immediately
       dispatch(removePurchaseState(purchaseId));
-
       deletePurchase(purchaseId, {
-        onSuccess: () => {
-          toast.success("Purchase deleted successfully");
-        },
-        onError: () => {
-          toast.error("Failed to delete purchase");
-        },
+        onSuccess: () => toast.success("Purchase deleted successfully"),
+        onError: () => toast.error("Failed to delete purchase"),
       });
     },
     [deletePurchase, dispatch]
   );
 
+  /** pagination handlers */
+  const currentPage = pagination?.currentPage || 1;
+  const totalPages = pagination?.totalPages || 1;
+
+  const handlePrev = () => currentPage > 1 && setPage(currentPage - 1);
+  const handleNext = () =>
+    currentPage < totalPages && setPage(currentPage + 1);
+
   return (
     <div className="min-h-screen p-4 bg-gray-100">
-      {/* HEADER */}
+      {/* === HEADER === */}
       <div className="flex flex-wrap items-center justify-between mb-4 gap-4">
         <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-gray-700">
           Stock Dashboard
@@ -82,7 +109,7 @@ const Purchase = () => {
         </Link>
       </div>
 
-      {/* SEARCH BAR */}
+      {/* === SEARCH === */}
       <div className="bg-white rounded-lg shadow p-4 mb-6 flex items-center gap-2">
         <Search size={18} className="text-gray-600" />
         <input
@@ -94,7 +121,7 @@ const Purchase = () => {
         />
       </div>
 
-      {/* RECENT PURCHASES */}
+      {/* === RECENT === */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-3">
           Recent Purchases
@@ -135,77 +162,129 @@ const Purchase = () => {
         </div>
       </div>
 
-      {/* PURCHASE TABLE */}
+      {/* === TABLE === */}
       <div className="bg-white rounded-lg shadow p-4">
         <h2 className="text-lg font-semibold text-gray-700 mb-3">
           All Purchase Records
         </h2>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm min-w-[700px]">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="py-2 px-3">Order Name</th>
-                <th className="py-2 px-3">Items</th>
-                <th className="py-2 px-3">Total</th>
-                <th className="py-2 px-3">Created</th>
-                <th className="py-2 px-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPurchases.map((purchase) => {
-                const totalPrice = purchase.items.reduce(
-                  (sum, item) => sum + item.price * item.quantity,
-                  0
-                );
+        <Table>
+          <TableCaption className="text-gray-500">
+            Full list of purchases
+          </TableCaption>
 
-                return (
-                  <tr key={purchase._id} className="border-b hover:bg-gray-50">
-                    <td className="py-2 px-3 font-medium text-gray-800">
-                      {purchase.orderName}
-                    </td>
+          <TableHeader>
+            <TableRow className="bg-gray-100">
+              <TableHead className="py-2 px-3">Order Name</TableHead>
+              <TableHead className="py-2 px-3">Items</TableHead>
+              <TableHead className="py-2 px-3">Total</TableHead>
+              <TableHead className="py-2 px-3">Created</TableHead>
+              <TableHead className="py-2 px-3 text-center">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
 
-                    <td className="py-2 px-3 text-gray-600">
-                      {purchase.items.length}
-                    </td>
+          <TableBody>
+            {filteredPurchases.map((purchase) => {
+              const totalPrice = purchase.items.reduce(
+                (sum, item) => sum + item.price * item.quantity,
+                0
+              );
 
-                    <td className="py-2 px-3 text-gray-600 font-semibold">
-                      ₹ {totalPrice}
-                    </td>
+              return (
+                <TableRow
+                  key={purchase._id}
+                  className="border-b hover:bg-gray-50"
+                >
+                  <TableCell className="py-2 px-3 font-medium text-gray-800">
+                    {purchase.orderName}
+                  </TableCell>
 
-                    <td className="py-2 px-3 text-gray-500">
-                      {new Date(purchase.createdAt).toLocaleDateString()}
-                    </td>
+                  <TableCell className="py-2 px-3 text-gray-600">
+                    {purchase.items.length}
+                  </TableCell>
 
-                    <td className="py-2 px-3 flex gap-4 justify-center items-center">
-                      <Link to={`/dashboard/purchase/${purchase._id}`}>
-                        <Eye
-                          size={20}
-                          className="text-blue-600 hover:scale-110"
-                        />
-                      </Link>
+                  <TableCell className="py-2 px-3 text-gray-600 font-semibold">
+                    ₹ {totalPrice}
+                  </TableCell>
 
-                      <Trash
+                  <TableCell className="py-2 px-3 text-gray-500">
+                    {new Date(purchase.createdAt).toLocaleDateString()}
+                  </TableCell>
+
+                  <TableCell className="py-2 px-3 flex gap-4 justify-center items-center">
+                    <Link to={`/dashboard/purchase/${purchase._id}`}>
+                      <Eye
                         size={20}
-                        className="text-red-600 cursor-pointer hover:scale-110"
-                        onClick={() => handleDelete(purchase._id)}
+                        className="text-blue-600 hover:scale-110"
                       />
-                    </td>
-                  </tr>
-                );
-              })}
+                    </Link>
 
-              {filteredPurchases.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-gray-500">
-                    No purchase records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    <Trash
+                      size={20}
+                      className="text-red-600 cursor-pointer hover:scale-110"
+                      onClick={() => handleDelete(purchase._id)}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+
+            {!isLoading && filteredPurchases.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-6 text-center text-gray-500">
+                  No purchase records found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
+
+      {/* === PAGINATION === */}
+      {!isLoading && pagination && (
+        <div className="mt-5">
+          <Pagination>
+            <PaginationContent>
+              {/* Prev */}
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={handlePrev}
+                  className={
+                    currentPage === 1 ? "opacity-50 pointer-events-none" : ""
+                  }
+                />
+              </PaginationItem>
+
+              {/* Pages */}
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <PaginationItem key={i}>
+                  <PaginationLink
+                    href="#"
+                    isActive={currentPage === i + 1}
+                    onClick={() => setPage(i + 1)}
+                  >
+                    {i + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+
+              {/* Next */}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={handleNext}
+                  className={
+                    currentPage === totalPages
+                      ? "opacity-50 pointer-events-none"
+                      : ""
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 };

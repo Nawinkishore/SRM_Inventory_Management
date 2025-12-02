@@ -28,14 +28,32 @@ export const createPurchase = async (req,res)=>{
 }
 
 export const getPurchaseList = async (req,res)=>{
-    const {userId} = req.params;
+    
     try {
-        const purchases = await Purchase.find({userId}).sort({createdAt: -1});
-        res.status(200).json({purchases});
+        const {userId ,page = 1 ,limit = 1} = req.query;
+        if(!userId){
+            return res.status(400).json({message: "User ID is required"});
+        }
+        const pageNumber = parseInt(page);
+        const limitNumber = parseInt(limit);
+        const totalPurchases = await Purchase.countDocuments({userId});
+        const totalPages = Math.ceil(totalPurchases / limitNumber);
+
+        const purchases = await Purchase.find({userId})
+        .sort({createdAt: -1})
+        .skip((pageNumber - 1) * limitNumber)
+        .limit(limitNumber);
+        res.status(200).json({purchases, pagination:{
+            total : totalPurchases,
+            currentPage : pageNumber,
+            totalPages : totalPages,
+            limit : limitNumber
+        }});
     } catch (error) {
         return res.status(500).json({message: "Server Error", error: error.message});
     }
 }
+
 
 export const getPurchaseById = async (req,res)=>{
     const {purchaseId} = req.params;

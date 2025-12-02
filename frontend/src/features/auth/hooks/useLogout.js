@@ -2,7 +2,7 @@
 import { useMutation } from "@tanstack/react-query";
 import api from "@/api/axios";
 import { useDispatch } from "react-redux";
-import { logout } from "@/store/auth/authSlice";
+import { clearAuth } from "../../../store/auth/authSlice";
 import { RESET_STORE, persistor } from "@/store/store";
 
 export const useLogout = () => {
@@ -15,7 +15,7 @@ export const useLogout = () => {
 
     onSuccess: async () => {
       // clear auth slice data
-      dispatch(logout());
+      dispatch(clearAuth());
 
       // wipe entire redux store
       dispatch({ type: RESET_STORE });

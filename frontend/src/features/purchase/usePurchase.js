@@ -17,15 +17,18 @@ export const useCreatePurchase = (userId) => {
 };
 
 
-export const usePurchaseList = (userId) => {
+export const usePurchaseList = ({userId, page, limit}) => {
   return useQuery({
-    queryKey: ["purchases", userId],
+    queryKey: ["purchases", userId ,page, limit],
     queryFn: async () => {
       if (!userId) return []; // safe fallback
       
-      const response = await api.get(`/purchase/list/${userId}`);
+      const response = await api.get(`/purchase/list?userId=${userId}&page=${page}&limit=${limit}`);
       // backend returns: { purchases: [...] }
-      return response.data.purchases || [];
+      return {
+        purchases: response.data.purchases || [],
+        pagination: response.data.pagination || null,
+      }
     },
     enabled: !!userId, // only run after user exists
   });
