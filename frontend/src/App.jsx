@@ -14,6 +14,8 @@ import VerifyOTP from "./pages/authentication/VerifyOTP";
 import ResetPassword from "./pages/authentication/ResetPassword";
 import Excel from "./pages/dashboard/Excel";
 import InvoiceList from "./pages/dashboard/InvoiceList";
+import Purchase from "./pages/dashboard/Purchase";
+import AddStockPage from "./pages/stocksPage/AddStockPage";
 import { Toaster } from "sonner";
 
 function App() {
@@ -57,6 +59,12 @@ function App() {
         <Route path="invoice" element={<InvoiceGenerator />} />
         <Route path="excel" element={<Excel />} />
         <Route path="invoices" element={<InvoiceList />} />
+        <Route path="purchase" element={<Purchase />} />
+
+
+
+        {/* Stocks Page */}
+        <Route path="stocks/add" element={<AddStockPage />} />
       </Route>
     </Routes>
     </>
