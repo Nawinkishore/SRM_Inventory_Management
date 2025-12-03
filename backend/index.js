@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.route.js";
 import productRoutes from "./routes/product.route.js";
 import excelRoutes from "./routes/excel.route.js";
 import purchaseRoutes from "./routes/purchase.route.js";
+import invoiceRoutes  from './routes/invoice.route.js'
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/excel', excelRoutes);
 app.use('/api/purchase', purchaseRoutes); 
+app.use('/api/invoice',invoiceRoutes);
 
 // Start Server
 app.listen(PORT, () => {
