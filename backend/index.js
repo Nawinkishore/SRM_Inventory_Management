@@ -8,7 +8,6 @@ import { connectDb } from "./db/connectDb.js";
 import authRoutes from "./routes/auth.route.js";
 import productRoutes from "./routes/product.route.js";
 import excelRoutes from "./routes/excel.route.js";
-import invoiceRoutes from "./routes/invoice.route.js"
 import purchaseRoutes from "./routes/purchase.route.js";
 
 const app = express();
@@ -31,8 +30,7 @@ app.get("/", (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/excel', excelRoutes);
-app.use('/api/invoice', invoiceRoutes);
-app.use('/api/purchase', purchaseRoutes); // Placeholder for purchase routes
+app.use('/api/purchase', purchaseRoutes); 
 
 // Start Server
 app.listen(PORT, () => {

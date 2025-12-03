@@ -12,7 +12,6 @@ export const fetchProducts = createAsyncThunk(
       const data = res.data;
 
       if (data.success && Array.isArray(data.products)) {
-        // Map API response into consistent frontend format
         return data.products.map((p) => ({
           partNo: p.partNo,
           description: p.partName,
@@ -24,7 +23,6 @@ export const fetchProducts = createAsyncThunk(
         return [];
       }
     } catch (err) {
-      console.error("Fetch error:", err);
       return rejectWithValue(err.response?.data?.message || err.message);
     }
   }

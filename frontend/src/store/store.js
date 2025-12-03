@@ -5,7 +5,6 @@ import { persistReducer, persistStore } from "redux-persist";
 
 import authReducer from "./auth/authSlice";
 import productReducer from "./product/productSlice";
-import invoiceReducer from "./invoices/invoiceSlice";
 import purchaseReducer from "./purchases/purchaseSlice";
 
 // GLOBAL RESET ACTION
@@ -20,7 +19,6 @@ const persistConfig = {
 const appReducer = combineReducers({
   auth: authReducer,
   products: productReducer,
-  invoice: invoiceReducer,
   purchase: purchaseReducer,
 });
 
