@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, User, LogOut, FileText,Sheet ,Container, ShoppingCart} from 'lucide-react';
+import { Home, User, LogOut, FileText,Sheet ,Container, ShoppingCart ,EqualApproximately } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
@@ -8,9 +8,12 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home, path: '/dashboard' },
     { id: 'invoice', label: 'Invoice Generator', icon: FileText, path: '/dashboard/invoice' },
-    {id :'excel',label:'Import Excel', icon: Sheet, path:'/dashboard/excel' },
     {id :'invoiceList', label:'Invoice List', icon: Container, path:'/dashboard/invoices' },
+    {id :'quotation', label:'Quotation', icon: EqualApproximately , path:'/dashboard/quotation' },
     {id :'purchase' ,label:'Purchase Order', icon: ShoppingCart, path:'/dashboard/purchase' },
+    {id :'excel',label:'Import Excel', icon: Sheet, path:'/dashboard/excel' },
+    
+    
   ];
 
   const isActive = (path) => {
