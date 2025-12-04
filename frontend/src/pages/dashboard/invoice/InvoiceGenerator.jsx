@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Table components imported from shadcn/ui
 const Table = ({ children, ...props }) => (
   <div className="w-full overflow-auto">
     <table className="w-full caption-bottom text-sm" {...props}>
@@ -26,21 +25,31 @@ const Table = ({ children, ...props }) => (
 );
 
 const TableHeader = ({ children, ...props }) => (
-  <thead className="[&_tr]:border-b" {...props}>{children}</thead>
+  <thead className="[&_tr]:border-b" {...props}>
+    {children}
+  </thead>
 );
 
 const TableBody = ({ children, ...props }) => (
-  <tbody className="[&_tr:last-child]:border-0" {...props}>{children}</tbody>
+  <tbody className="[&_tr:last-child]:border-0" {...props}>
+    {children}
+  </tbody>
 );
 
 const TableHead = ({ children, ...props }) => (
-  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0" {...props}>
+  <th
+    className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+    {...props}
+  >
     {children}
   </th>
 );
 
 const TableRow = ({ children, ...props }) => (
-  <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted" {...props}>
+  <tr
+    className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+    {...props}
+  >
     {children}
   </tr>
 );
@@ -51,7 +60,15 @@ const TableCell = ({ children, ...props }) => (
   </td>
 );
 
-import { Trash2, FileText, User, Car, Package, Save, Wallet } from "lucide-react";
+import {
+  Trash2,
+  FileText,
+  User,
+  Car,
+  Package,
+  Save,
+  Wallet,
+} from "lucide-react";
 import { toast } from "sonner";
 
 const invoiceTypes = ["job-card", "sales", "advance"];
@@ -68,29 +85,41 @@ const PRODUCT_TABLE_CONFIG = [
   { key: "IGSTCode", label: "IGST %" },
 ];
 
-// convert product model → invoice item
-const convertProductToItem = (product) => ({
-  partNo: product.partNo,
-  partName: product.partName,
-  largeGroup: product.largeGroup,
-  tariff: product.tariff,
-  revisedMRP: product.revisedMRP,
-  CGSTCode: product.CGSTCode,
-  SGSTCode: product.SGSTCode,
-  IGSTCode: product.IGSTCode,
+// product -> invoice item (GST = IGST or (CGST+SGST))
+const convertProductToItem = (product) => {
+  const price = Number(product.revisedMRP) || 0;
+  const qty = 1;
 
-  quantity: 1,
-  discount: 0,
-  taxAmount: 0,
-  finalAmount: product.revisedMRP || 0,
-});
+  const gstPercent =
+    product.IGSTCode > 0
+      ? product.IGSTCode
+      : (Number(product.CGSTCode) || 0) + (Number(product.SGSTCode) || 0);
+
+  const itemSubtotal = qty * price;
+  const taxAmount = Math.round((itemSubtotal * gstPercent) / 100);
+  const finalAmount = itemSubtotal + taxAmount;
+
+  return {
+    partNo: product.partNo,
+    partName: product.partName,
+    largeGroup: product.largeGroup,
+    tariff: product.tariff,
+    revisedMRP: price,
+    CGSTCode: product.CGSTCode,
+    SGSTCode: product.SGSTCode,
+    IGSTCode: product.IGSTCode,
+    quantity: qty,
+    discount: 0,
+    taxAmount,
+    finalAmount,
+  };
+};
 
 const InvoiceGenerator = () => {
   const today = new Date().toISOString().split("T")[0];
   const { data: nextInvoiceNumber = "" } = useNextInvoiceNumber();
   const { mutate: createInvoice, isPending } = useCreateInvoice();
 
-  // FORM STATES
   const [invoiceType, setInvoiceType] = React.useState("");
   const [invoiceStatus, setInvoiceStatus] = React.useState("draft");
 
@@ -111,60 +140,72 @@ const InvoiceGenerator = () => {
   const [remarks, setRemarks] = React.useState("");
   const [items, setItems] = React.useState([]);
   const [search, setSearch] = React.useState("");
-  
-  // Payment states
+
   const [paymentMode, setPaymentMode] = React.useState("cash");
-  const [amountPaid, setAmountPaid] = React.useState("");
+  const [amountPaid, setAmountPaid] = React.useState(0);
 
   const { data: products = [] } = useProductSearch(search);
 
-  /* UPDATE QTY */
   const updateItemQty = (index, qty) => {
     const validQty = qty < 1 ? 1 : qty;
-    setItems((items) =>
-      items.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              quantity: validQty,
-              finalAmount: validQty * item.revisedMRP,
-            }
-          : item
-      )
+    setItems((prevItems) =>
+      prevItems.map((item, i) => {
+        if (i !== index) return item;
+
+        const itemSubtotal = validQty * item.revisedMRP;
+        const gstPercent =
+          item.IGSTCode > 0
+            ? item.IGSTCode
+            : (Number(item.CGSTCode) || 0) + (Number(item.SGSTCode) || 0);
+
+        const taxAmount = Math.round((itemSubtotal * gstPercent) / 100);
+        const finalAmount = itemSubtotal + taxAmount;
+
+        return {
+          ...item,
+          quantity: validQty,
+          taxAmount,
+          finalAmount,
+        };
+      })
     );
   };
 
-  /* DELETE ITEM */
-  const deleteItem = (index) =>
-    setItems((items) => items.filter((_, i) => i !== index));
+  const deleteItem = (index) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+    toast.success("Item removed");
+  };
 
-  /* TOTAL CALC */
-  const subtotal = items.reduce((sum, i) => sum + i.finalAmount, 0);
-
-  const totalGSTAmount = items.reduce((sum, item) => {
-    const gstPercent =
-      item.IGSTCode > 0
-        ? item.IGSTCode
-        : (item.CGSTCode || 0) + (item.SGSTCode || 0);
-
-    return sum + (item.finalAmount * parseInt(gstPercent)) / 100;
-  }, 0);
-
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.quantity * item.revisedMRP,
+    0
+  );
+  const totalGSTAmount = items.reduce(
+    (sum, item) => sum + (Number(item.taxAmount) || 0),
+    0
+  );
   const grandTotal = subtotal + totalGSTAmount;
-  
-  // Calculate balance amount
-  const balanceAmount = Math.max(0, grandTotal - amountPaid);
 
-  /* SAVE INVOICE */
+  const balanceAmount = Math.max(0, grandTotal - (amountPaid || 0));
+
   const handleSave = () => {
-    if (!invoiceType) return alert("Select invoice type");
-    if (!customer.name) return alert("Customer name required");
-    if (items.length === 0) return alert("Add at least 1 item");
+    if (!invoiceType) {
+      toast.error("Please select invoice type");
+      return;
+    }
+    if (!customer.name) {
+      toast.error("Customer name is required");
+      return;
+    }
+    if (items.length === 0) {
+      toast.error("Please add at least one item");
+      return;
+    }
 
     const invoiceData = {
       invoiceNumber: invoiceType !== "quotation" ? nextInvoiceNumber : null,
       invoiceType,
-      invoiceStatus,
+      invoiceStatus, // backend will override based on balance
       invoiceDate: today,
       customer,
       vehicle,
@@ -177,17 +218,14 @@ const InvoiceGenerator = () => {
         grandTotal,
         roundOff: 0,
       },
-      payment: {
-        paymentMode,
-        amountPaid,
-        balanceAmount,
-      },
+      amountPaid,
+      balanceDue: balanceAmount,
+      amountType: paymentMode,
     };
 
     createInvoice(invoiceData, {
       onSuccess: () => {
         toast.success("Invoice created successfully!");
-        // Reset form after successful save
         setInvoiceType("");
         setInvoiceStatus("draft");
         setCustomer({ name: "", phone: "" });
@@ -205,14 +243,14 @@ const InvoiceGenerator = () => {
         setPaymentMode("cash");
       },
       onError: (err) =>
-        toast.error(err.response?.data?.message || "API failed"),
+        toast.error(err?.response?.data?.message || "Failed to create invoice"),
     });
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
+        {/* HEADER */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -220,8 +258,12 @@ const InvoiceGenerator = () => {
                 <FileText className="text-white" size={24} />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-800">Invoice Generator</h1>
-                <p className="text-sm text-slate-500">Create and manage invoices</p>
+                <h1 className="text-2xl font-bold text-slate-800">
+                  Invoice Generator
+                </h1>
+                <p className="text-sm text-slate-500">
+                  Create and manage invoices
+                </p>
               </div>
             </div>
 
@@ -236,14 +278,19 @@ const InvoiceGenerator = () => {
                     <SelectLabel>Invoice Types</SelectLabel>
                     {invoiceTypes.map((invType) => (
                       <SelectItem key={invType} value={invType}>
-                        {invType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                        {invType
+                          .split("-")
+                          .map(
+                            (w) => w.charAt(0).toUpperCase() + w.slice(1)
+                          )
+                          .join(" ")}
                       </SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
 
-              {/* Invoice Status */}
+              {/* Invoice Status (optional manual override) */}
               <Select value={invoiceStatus} onValueChange={setInvoiceStatus}>
                 <SelectTrigger className="w-full sm:w-[180px] bg-white">
                   <SelectValue placeholder="Invoice Status" />
@@ -263,11 +310,13 @@ const InvoiceGenerator = () => {
           </div>
         </div>
 
-        {/* Customer Details */}
+        {/* CUSTOMER DETAILS */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-5">
             <User className="text-blue-500" size={20} />
-            <h2 className="text-lg font-semibold text-slate-800">Customer Details</h2>
+            <h2 className="text-lg font-semibold text-slate-800">
+              Customer Details
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -309,83 +358,82 @@ const InvoiceGenerator = () => {
           </div>
         </div>
 
-        {/* Vehicle Details */}
+        {/* VEHICLE (only for job-card) */}
         {invoiceType !== "sales" && invoiceType !== "advance" && (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <Car className="text-blue-500" size={20} />
-            <h2 className="text-lg font-semibold text-slate-800">Vehicle Details</h2>
+            <div className="flex items-center gap-2 mb-5">
+              <Car className="text-blue-500" size={20} />
+              <h2 className="text-lg font-semibold text-slate-800">
+                Vehicle Details
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                placeholder="Vehicle Model"
+                type="text"
+                value={vehicle.model}
+                onChange={(e) =>
+                  setVehicle({ ...vehicle, model: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Registration Number"
+                type="text"
+                value={vehicle.registrationNumber}
+                onChange={(e) =>
+                  setVehicle({
+                    ...vehicle,
+                    registrationNumber: e.target.value,
+                  })
+                }
+              />
+              <Input
+                placeholder="VIN (Chassis Number)"
+                type="text"
+                value={vehicle.vin}
+                onChange={(e) =>
+                  setVehicle({ ...vehicle, vin: e.target.value })
+                }
+              />
+              <Input
+                placeholder="KM Reading"
+                type="number"
+                value={vehicle.kmReading}
+                onChange={(e) =>
+                  setVehicle({ ...vehicle, kmReading: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Next Service KM"
+                type="number"
+                value={vehicle.nextServiceKm}
+                onChange={(e) =>
+                  setVehicle({ ...vehicle, nextServiceKm: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Next Service Date"
+                type="date"
+                value={vehicle.nextServiceDate}
+                onChange={(e) =>
+                  setVehicle({
+                    ...vehicle,
+                    nextServiceDate: e.target.value,
+                  })
+                }
+              />
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              placeholder="Vehicle Model"
-              type="text"
-              value={vehicle.model}
-              onChange={(e) =>
-                setVehicle({ ...vehicle, model: e.target.value })
-              }
-            />
-
-            <Input
-              placeholder="Registration Number"
-              type="text"
-              value={vehicle.registrationNumber}
-              onChange={(e) =>
-                setVehicle({
-                  ...vehicle,
-                  registrationNumber: e.target.value,
-                })
-              }
-            />
-
-            <Input
-              placeholder="VIN (Chassis Number)"
-              type="text"
-              value={vehicle.vin}
-              onChange={(e) =>
-                setVehicle({ ...vehicle, vin: e.target.value })
-              }
-            />
-
-            <Input
-              placeholder="KM Reading"
-              type="number"
-              value={vehicle.kmReading}
-              onChange={(e) =>
-                setVehicle({ ...vehicle, kmReading: e.target.value })
-              }
-            />
-
-            <Input
-              placeholder="Next Service KM"
-              type="number"
-              value={vehicle.nextServiceKm}
-              onChange={(e) =>
-                setVehicle({ ...vehicle, nextServiceKm: e.target.value })
-              }
-            />
-
-            <Input
-              placeholder="Next Service Date"
-              type="date"
-              value={vehicle.nextServiceDate}
-              onChange={(e) =>
-                setVehicle({
-                  ...vehicle,
-                  nextServiceDate: e.target.value,
-                })
-              }
-            />
-          </div>
-        </div>
         )}
 
-        {/* Product Search */}
+        {/* PRODUCT SEARCH */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Package className="text-blue-500" size={20} />
-            <h2 className="text-lg font-semibold text-slate-800">Add Products</h2>
+            <h2 className="text-lg font-semibold text-slate-800">
+              Add Products
+            </h2>
           </div>
 
           <div className="relative">
@@ -405,22 +453,28 @@ const InvoiceGenerator = () => {
                     className="p-3 cursor-pointer hover:bg-slate-50 border-b last:border-b-0 transition-colors"
                     onClick={() => {
                       const newItem = convertProductToItem(p);
-
                       setItems((prev) => {
                         const exists = prev.some(
                           (item) => item.partNo === newItem.partNo
                         );
-                        if (exists) return prev;
+                        if (exists) {
+                          toast.error("Item already added");
+                          return prev;
+                        }
+                        toast.success("Item added");
                         return [...prev, newItem];
                       });
-
                       setSearch("");
                     }}
                   >
                     <p className="font-medium text-slate-800">{p.partName}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm text-slate-600">{p.partNo}</span>
-                      <span className="text-sm font-semibold text-blue-600">₹{p.revisedMRP}</span>
+                      <span className="text-sm text-slate-600">
+                        {p.partNo}
+                      </span>
+                      <span className="text-sm font-semibold text-blue-600">
+                        ₹{p.revisedMRP}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -429,32 +483,52 @@ const InvoiceGenerator = () => {
           </div>
         </div>
 
-        {/* Items Table */}
+        {/* ITEMS TABLE */}
         {items.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-            <h3 className="text-lg font-semibold text-slate-800 mb-4">Invoice Items</h3>
-            
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">
+              Invoice Items
+            </h3>
+
             <div className="overflow-x-auto -mx-4 md:mx-0">
               <div className="inline-block min-w-full align-middle">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
                       {PRODUCT_TABLE_CONFIG.map((col) => (
-                        <TableHead key={col.key} className="font-semibold text-slate-700">
+                        <TableHead
+                          key={col.key}
+                          className="font-semibold text-slate-700"
+                        >
                           {col.label}
                         </TableHead>
                       ))}
-                      <TableHead className="font-semibold text-slate-700">Qty</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Total</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Actions</TableHead>
+                      <TableHead className="font-semibold text-slate-700">
+                        Qty
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-700">
+                        Tax
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-700">
+                        Total
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-700">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
                     {items.map((item, idx) => (
-                      <TableRow key={idx} className="hover:bg-slate-50 transition-colors">
+                      <TableRow
+                        key={idx}
+                        className="hover:bg-slate-50 transition-colors"
+                      >
                         {PRODUCT_TABLE_CONFIG.map((col) => (
-                          <TableCell key={col.key} className="text-slate-700">
+                          <TableCell
+                            key={col.key}
+                            className="text-slate-700"
+                          >
                             {item[col.key] || "-"}
                           </TableCell>
                         ))}
@@ -465,10 +539,14 @@ const InvoiceGenerator = () => {
                             min={1}
                             value={item.quantity}
                             onChange={(e) =>
-                              updateItemQty(idx, +e.target.value)
+                              updateItemQty(idx, Number(e.target.value))
                             }
                             className="w-20"
                           />
+                        </TableCell>
+
+                        <TableCell className="text-slate-700">
+                          ₹{item.taxAmount.toLocaleString()}
                         </TableCell>
 
                         <TableCell className="font-semibold text-slate-800">
@@ -490,23 +568,31 @@ const InvoiceGenerator = () => {
               </div>
             </div>
 
-            {/* Summary */}
+            {/* SUMMARY */}
             <div className="flex justify-end mt-6">
               <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-6 w-full md:w-[350px] space-y-3 border border-slate-200">
                 <div className="flex justify-between items-center text-slate-700">
                   <span className="font-medium">Subtotal:</span>
-                  <span className="font-semibold">₹{subtotal.toLocaleString()}</span>
+                  <span className="font-semibold">
+                    ₹{subtotal.toLocaleString()}
+                  </span>
                 </div>
 
                 <div className="flex justify-between items-center text-slate-700">
                   <span className="font-medium">GST Amount:</span>
-                  <span className="font-semibold">₹{totalGSTAmount.toLocaleString()}</span>
+                  <span className="font-semibold">
+                    ₹{totalGSTAmount.toLocaleString()}
+                  </span>
                 </div>
 
                 <div className="border-t border-slate-300 pt-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-slate-800">Grand Total:</span>
-                    <span className="text-xl font-bold text-blue-600">₹{grandTotal.toLocaleString()}</span>
+                    <span className="text-lg font-bold text-slate-800">
+                      Grand Total:
+                    </span>
+                    <span className="text-xl font-bold text-blue-600">
+                      ₹{grandTotal.toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -514,16 +600,18 @@ const InvoiceGenerator = () => {
           </div>
         )}
 
-        {/* Payment Details */}
+        {/* PAYMENT DETAILS */}
         {items.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
             <div className="flex items-center gap-2 mb-5">
               <Wallet className="text-blue-500" size={20} />
-              <h2 className="text-lg font-semibold text-slate-800">Payment Details</h2>
+              <h2 className="text-lg font-semibold text-slate-800">
+                Payment Details
+              </h2>
             </div>
 
             <div className="space-y-4">
-              {/* Payment Mode Toggle */}
+              {/* MODE */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Payment Mode
@@ -554,27 +642,33 @@ const InvoiceGenerator = () => {
                 </div>
               </div>
 
-              {/* Amount Paid */}
+              {/* AMOUNT PAID + BALANCE */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Amount Paid *
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 font-semibold">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 font-semibold">
+                      ₹
+                    </span>
                     <Input
-                      type="text"
-                      value={amountPaid}
+                      type="number"
+                      value={amountPaid || ""}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!isNaN(value) && value >= 0) {
-                          setAmountPaid(value);
-                        } else if (e.target.value === '') {
+                        const value = Number(e.target.value);
+                        if (Number.isNaN(value)) {
                           setAmountPaid(0);
+                          return;
                         }
+                        if (value < 0) return;
+                        setAmountPaid(Math.min(value, grandTotal));
                       }}
-                      placeholder=""
+                      placeholder="0"
                       className="text-lg pl-8 font-semibold"
+                      min="0"
+                      max={grandTotal}
+                      step="1"
                     />
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
@@ -586,20 +680,22 @@ const InvoiceGenerator = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Balance Amount
                   </label>
-                  <div className={`flex items-center justify-between h-10 px-4 rounded-lg border-2 text-lg font-bold ${
-                    balanceAmount > 0 
-                      ? "bg-red-50 border-red-300 text-red-700" 
-                      : "bg-green-50 border-green-300 text-green-700"
-                  }`}>
+                  <div
+                    className={`flex items-center justify-between h-10 px-4 rounded-lg border-2 text-lg font-bold ${
+                      balanceAmount > 0
+                        ? "bg-red-50 border-red-300 text-red-700"
+                        : "bg-green-50 border-green-300 text-green-700"
+                    }`}
+                  >
                     <span className="text-sm font-medium">
                       {balanceAmount > 0 ? "Due:" : "Paid:"}
                     </span>
-                    <span>₹{balanceAmount.toLocaleString()}</span>
+                    <span>₹{Math.abs(balanceAmount).toLocaleString()}</span>
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    {balanceAmount > 0 
-                      ? `Remaining balance to be paid` 
-                      : `Fully paid`}
+                    {balanceAmount > 0
+                      ? "Remaining balance to be paid"
+                      : "Fully paid"}
                   </p>
                 </div>
               </div>
@@ -607,9 +703,11 @@ const InvoiceGenerator = () => {
           </div>
         )}
 
-        {/* Remarks */}
+        {/* REMARKS */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Additional Notes</h3>
+          <h3 className="text-lg font-semibold text-slate-800 mb-4">
+            Additional Notes
+          </h3>
           <Input
             placeholder="Add any remarks or special instructions..."
             type="text"
@@ -618,7 +716,7 @@ const InvoiceGenerator = () => {
           />
         </div>
 
-        {/* SAVE BTN */}
+        {/* SAVE BUTTON */}
         <div className="flex justify-end pb-6">
           <button
             className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"

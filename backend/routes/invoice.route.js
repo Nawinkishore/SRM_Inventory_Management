@@ -5,6 +5,7 @@ import {
   getInvoiceById,
   updateInvoice,
   cancelInvoice,
+  deleteInvoice,
   getNextInvoiceNumber,
 } from "../controllers/invoice.controller.js";
 
@@ -25,7 +26,10 @@ router.get("/:id", getInvoiceById);
 // Update invoice
 router.put("/:id", updateInvoice);
 
-// Cancel invoice (soft delete)
+// Cancel invoice (soft delete - changes status)
 router.patch("/:id/cancel", cancelInvoice);
+
+// Delete invoice (permanent delete)
+router.delete("/:id", deleteInvoice);
 
 export default router;

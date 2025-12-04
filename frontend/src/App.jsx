@@ -19,6 +19,7 @@ import AddStockPage from "./pages/stocksPage/AddStockPage";
 import PurchaseId from "./pages/dashboard/Purchase/PurchaseId";
 import { Toaster } from "sonner";
 import QuotationPage from "./pages/dashboard/invoice/QuotationPage";
+import InvoiceId from "./pages/dashboard/invoice/InvoiceId";
 
 function App() {
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
@@ -68,6 +69,7 @@ function App() {
           <Route path="quotation" element={<QuotationPage />} />
           <Route path="invoice" element={<InvoiceGenerator />} />
           <Route path="invoices" element={<InvoiceList />} />
+          <Route path="invoice/:id" element={<InvoiceId />} />
 
           {/* Purchase Routes */}
           <Route path="purchase" element={<Purchase />} />
