@@ -33,23 +33,75 @@ export const createInvoice = async (req, res) => {
   }
 };
 
-// ========================
-// FILTER INVOICES
+// ======================== Filter + Pagination GET INVOICES
 // ========================
 export const getInvoices = async (req, res) => {
   try {
+    const {
+      page = 1,
+      limit = 10,
+      invoiceType,
+      invoiceStatus,
+      phone,
+      invoiceNumber,
+      q,
+      customerName,
+    } = req.query;
+
     const filters = {};
 
-    if (req.query.invoiceType) filters.invoiceType = req.query.invoiceType;
-    if (req.query.invoiceStatus) filters.invoiceStatus = req.query.invoiceStatus;
-    if (req.query.phone) filters["customer.phone"] = req.query.phone;
-    if (req.query.invoiceNumber) filters.invoiceNumber = req.query.invoiceNumber;
+    // Invoice type filter
+    // - If invoiceType is "quotation" -> ONLY quotations
+    // - If invoiceType is "all" OR not provided -> EXCLUDE quotations
+    // - Else (sales, job-card, etc) -> ONLY that type
+    if (invoiceType === "quotation") {
+      filters.invoiceType = "quotation";
+    } else if (!invoiceType || invoiceType === "all") {
+      filters.invoiceType = { $ne: "quotation" };
+    } else {
+      filters.invoiceType = invoiceType;
+    }
 
-    const invoices = await Invoice.find(filters).sort({ createdAt: -1 });
+    if (invoiceStatus) filters.invoiceStatus = invoiceStatus;
+    if (phone) filters["customer.phone"] = phone;
+    if (invoiceNumber) filters.invoiceNumber = invoiceNumber;
 
-    return res.status(200).json({ success: true, data: invoices });
+    // dedicated customer name filter
+    if (customerName) {
+      filters["customer.name"] = { $regex: customerName, $options: "i" };
+    }
+
+    // general search (name + invoiceNumber)
+    if (q) {
+      filters.$or = [
+        { "customer.name": { $regex: q, $options: "i" } },
+        { invoiceNumber: { $regex: q, $options: "i" } },
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [invoices, total] = await Promise.all([
+      Invoice.find(filters)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Invoice.countDocuments(filters),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: invoices,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      pages: Math.ceil(total / parseInt(limit)),
+    });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
