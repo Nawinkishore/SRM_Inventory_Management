@@ -1,11 +1,12 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
+// ITEM SCHEMA
 const InvoiceItemSchema = new mongoose.Schema(
   {
     partNo: { type: String, trim: true },
     partName: { type: String, required: true, trim: true },
     largeGroup: { type: String, trim: true },
-    tariff: { type: Number },
+    tariff: { type: Number }, // HSN / tariff code
     revisedMRP: { type: Number, required: true, min: 0 },
 
     CGSTCode: { type: Number, default: 0, min: 0 },
@@ -21,12 +22,13 @@ const InvoiceItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// INVOICE SCHEMA
 const invoiceSchema = new mongoose.Schema(
   {
     invoiceNumber: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true, // allows null for quotation
     },
 
     invoiceDate: {
@@ -37,13 +39,13 @@ const invoiceSchema = new mongoose.Schema(
     invoiceType: {
       type: String,
       required: true,
-      enum: ['job-card', 'sales', 'advance', 'quotation'],
+      enum: ["job-card", "sales", "advance", "quotation"],
     },
 
     isInvoice: {
       type: Boolean,
       default: function () {
-        return this.invoiceType !== 'quotation';
+        return this.invoiceType !== "quotation";
       },
     },
 
@@ -57,8 +59,7 @@ const invoiceSchema = new mongoose.Schema(
         type: String,
         trim: true,
         match: /^[0-9]{10}$/,
-      },
-      address: { type: String, trim: true },
+      }
     },
 
     vehicle: {
@@ -66,12 +67,14 @@ const invoiceSchema = new mongoose.Schema(
       registrationNumber: { type: String, trim: true },
       vin: { type: String, trim: true },
       kmReading: { type: Number },
+      nextServiceKm: { type: Number },
+      nextServiceDate: { type: Date },
     },
 
     invoiceStatus: {
       type: String,
-      enum: ['draft', 'completed', 'canceled'],
-      default: 'draft',
+      enum: ["draft", "completed", "canceled"],
+      default: "draft",
     },
 
     remarks: {
@@ -91,9 +94,22 @@ const invoiceSchema = new mongoose.Schema(
       grandTotal: { type: Number, default: 0 },
       roundOff: { type: Number, default: 0 },
     },
+    amountPaid : {
+      type : Number,
+      default : 0
+    },
+    balanceDue : {
+      type : Number,
+      default : 0
+    },
+    amountType:{
+      type: String,
+      default: 'cash',
+      enum : ['cash','credit']
+    }
   },
   { timestamps: true }
 );
 
-const Invoice = mongoose.model('Invoice', invoiceSchema);
+const Invoice = mongoose.model("Invoice", invoiceSchema);
 export default Invoice;

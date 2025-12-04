@@ -4,7 +4,6 @@ import storage from "redux-persist/lib/storage";
 import { persistReducer, persistStore } from "redux-persist";
 
 import authReducer from "./auth/authSlice";
-import productReducer from "./product/productSlice";
 import purchaseReducer from "./purchases/purchaseSlice";
 
 // GLOBAL RESET ACTION
@@ -18,7 +17,6 @@ const persistConfig = {
 
 const appReducer = combineReducers({
   auth: authReducer,
-  products: productReducer,
   purchase: purchaseReducer,
 });
 

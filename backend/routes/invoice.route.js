@@ -5,23 +5,27 @@ import {
   getInvoiceById,
   updateInvoice,
   cancelInvoice,
+  getNextInvoiceNumber,
 } from "../controllers/invoice.controller.js";
 
 const router = express.Router();
 
-// Create new invoice
-router.post("/invoices", createInvoice);
+// Get next invoice number
+router.get("/next-number", getNextInvoiceNumber);
 
-// Get all invoices (with optional filters)
-router.get("/invoices", getInvoices);
+// Create invoice
+router.post("/", createInvoice);
 
-// Get single invoice by ID
-router.get("/invoices/:id", getInvoiceById);
+// Get all invoices
+router.get("/", getInvoices);
+
+// Get one invoice
+router.get("/:id", getInvoiceById);
 
 // Update invoice
-router.put("/invoices/:id", updateInvoice);
+router.put("/:id", updateInvoice);
 
 // Cancel invoice (soft delete)
-router.patch("/invoices/:id/cancel", cancelInvoice);
+router.patch("/:id/cancel", cancelInvoice);
 
 export default router;
