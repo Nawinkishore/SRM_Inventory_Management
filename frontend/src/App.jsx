@@ -20,6 +20,7 @@ import PurchaseId from "./pages/dashboard/Purchase/PurchaseId";
 import { Toaster } from "sonner";
 import QuotationPage from "./pages/dashboard/invoice/QuotationPage";
 import InvoiceId from "./pages/dashboard/invoice/InvoiceId";
+import InvoicePreview from "./components/home/invoice/InvoicePreview";
 
 function App() {
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
@@ -50,6 +51,9 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+        {/* Check invoice */}
+        <Route path ='/invoice/check' element = {<InvoicePreview/>} />
 
         {/* Protected Dashboard Routes */}
         <Route
