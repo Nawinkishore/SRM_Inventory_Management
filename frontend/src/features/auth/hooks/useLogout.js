@@ -2,7 +2,6 @@
 import { useMutation } from "@tanstack/react-query";
 import api from "@/api/axios";
 import { useDispatch } from "react-redux";
-import { RESET_STORE, persistor } from "@/store/store";
 
 export const useLogout = () => {
   const dispatch = useDispatch();
