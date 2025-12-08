@@ -16,7 +16,10 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useInvoices } from "@/features/invoice/useInvoice";
-import { pdf } from "@react-pdf/renderer";
+
+// IMPORTANT: Remove the pdf import - we'll use BlobProvider instead
+// import { pdf } from "@react-pdf/renderer";
+import { BlobProvider } from "@react-pdf/renderer";
 import InvoicePDF from "@/components/home/invoice/InvoicePDF";
 
 import {
@@ -46,6 +49,8 @@ const InvoiceList = () => {
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const limit = 10;
 
@@ -60,42 +65,7 @@ const InvoiceList = () => {
 
   const invoices = data?.data || [];
   const totalPages = data?.pagination?.pages || 1;
-
-  // Download PDF Handler
-  const handleDownloadPDF = async (invoice) => {
-    try {
-      const blob = await pdf(<InvoicePDF invoice={invoice} />).toBlob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Invoice-${invoice.invoiceNumber}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error downloading PDF:", error);
-    }
-  };
-
-  // Print PDF Handler
-  const handlePrintPDF = async (invoice) => {
-    try {
-      const blob = await pdf(<InvoicePDF invoice={invoice} />).toBlob();
-      const url = URL.createObjectURL(blob);
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = url;
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        iframe.contentWindow.print();
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          URL.revokeObjectURL(url);
-        }, 100);
-      };
-    } catch (error) {
-      console.error("Error printing PDF:", error);
-    }
-  };
+  console.log("InvoiceList Rendered with invoices:", invoices);
 
   // Status badge UI
   const getStatusBadge = (invoice) => {
@@ -381,20 +351,50 @@ const InvoiceList = () => {
                           >
                             <Eye size={16} />
                           </button>
-                          <button
-                            onClick={() => handleDownloadPDF(inv)}
-                            className="p-2 rounded-xl text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                            title="Download PDF"
-                          >
-                            <Download size={16} />
-                          </button>
-                          <button
-                            onClick={() => handlePrintPDF(inv)}
-                            className="p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                            title="Print Invoice"
-                          >
-                            <Printer size={16} />
-                          </button>
+                          
+                          {/* Download with BlobProvider */}
+                          <BlobProvider document={<InvoicePDF invoice={inv} />}>
+                            {({ blob, url, loading, error }) => (
+                              <button
+                                onClick={() => {
+                                  if (url) {
+                                    const link = document.createElement("a");
+                                    link.href = url;
+                                    link.download = `Invoice-${inv.invoiceNumber}.pdf`;
+                                    link.click();
+                                  }
+                                }}
+                                disabled={loading}
+                                className="p-2 rounded-xl text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all disabled:opacity-50"
+                                title={loading ? "Generating PDF..." : "Download PDF"}
+                              >
+                                <Download size={16} />
+                              </button>
+                            )}
+                          </BlobProvider>
+
+                          {/* Print with BlobProvider */}
+                          <BlobProvider document={<InvoicePDF invoice={inv} />}>
+                            {({ blob, url, loading, error }) => (
+                              <button
+                                onClick={() => {
+                                  if (url) {
+                                    const printWindow = window.open(url, '_blank');
+                                    if (printWindow) {
+                                      printWindow.onload = () => {
+                                        printWindow.print();
+                                      };
+                                    }
+                                  }
+                                }}
+                                disabled={loading}
+                                className="p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all disabled:opacity-50"
+                                title={loading ? "Generating PDF..." : "Print Invoice"}
+                              >
+                                <Printer size={16} />
+                              </button>
+                            )}
+                          </BlobProvider>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -503,20 +503,50 @@ const InvoiceList = () => {
                         <Eye size={16} />
                         View
                       </button>
-                      <button
-                        onClick={() => handleDownloadPDF(inv)}
-                        className="p-2.5 rounded-xl text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                        title="Download"
-                      >
-                        <Download size={18} />
-                      </button>
-                      <button
-                        onClick={() => handlePrintPDF(inv)}
-                        className="p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                        title="Print"
-                      >
-                        <Printer size={18} />
-                      </button>
+                      
+                      {/* Download with BlobProvider */}
+                      <BlobProvider document={<InvoicePDF invoice={inv} />}>
+                        {({ blob, url, loading, error }) => (
+                          <button
+                            onClick={() => {
+                              if (url) {
+                                const link = document.createElement("a");
+                                link.href = url;
+                                link.download = `Invoice-${inv.invoiceNumber}.pdf`;
+                                link.click();
+                              }
+                            }}
+                            disabled={loading}
+                            className="p-2.5 rounded-xl text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all disabled:opacity-50"
+                            title={loading ? "Generating..." : "Download"}
+                          >
+                            <Download size={18} />
+                          </button>
+                        )}
+                      </BlobProvider>
+
+                      {/* Print with BlobProvider */}
+                      <BlobProvider document={<InvoicePDF invoice={inv} />}>
+                        {({ blob, url, loading, error }) => (
+                          <button
+                            onClick={() => {
+                              if (url) {
+                                const printWindow = window.open(url, '_blank');
+                                if (printWindow) {
+                                  printWindow.onload = () => {
+                                    printWindow.print();
+                                  };
+                                }
+                              }
+                            }}
+                            disabled={loading}
+                            className="p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all disabled:opacity-50"
+                            title={loading ? "Generating..." : "Print"}
+                          >
+                            <Printer size={18} />
+                          </button>
+                        )}
+                      </BlobProvider>
                     </div>
                   </div>
                 </div>

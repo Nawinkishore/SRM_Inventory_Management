@@ -1,4 +1,4 @@
-// InvoicePDF.jsx - Dynamic Invoice PDF Component
+// InvoicePDF.jsx - Clean A5 Invoice with Proper Spacing
 
 import React from "react";
 import {
@@ -13,174 +13,230 @@ import {
 import QrCode from "@/assets/qrcode.png";
 import Logo from "@/assets/logo.jpg";
 
-// ---- Styles matching the PDF layout ----
+// ========== STYLES FOR A5 (148mm x 210mm) ==========
 const styles = StyleSheet.create({
   page: {
-    padding: 20,
-    fontSize: 9,
+    padding: 15,
+    fontSize: 8,
     fontFamily: "Helvetica",
+    lineHeight: 1.2,
   },
 
+  // Header Section
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 15,
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottom: "1pt solid #000",
   },
 
-  logoSection: {
-    width: "25%",
+  logoContainer: {
+    width: "30%",
   },
 
   logo: {
-    width: 60,
-    height: 60,
+    width: 50,
+    height: 50,
   },
 
-  companySection: {
-    width: "70%",
-    alignItems: "flex-end",
+  companyInfo: {
+    width: "68%",
+    textAlign: "right",
   },
 
   companyName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "bold",
-    marginBottom: 3,
+    marginBottom: 2,
   },
 
   companyText: {
-    fontSize: 8,
-    textAlign: "right",
+    fontSize: 7,
     lineHeight: 1.3,
+    color: "#333",
   },
 
+  // Invoice Title
   invoiceTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 12,
     textDecoration: "underline",
+    marginVertical: 8,
   },
 
-  twoColumnRow: {
+  // Two Column Layout
+  twoColumns: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 8,
   },
 
-  column: {
+  columnLeft: {
     width: "48%",
+    alignItems: "flex-start",
   },
 
-  sectionTitle: {
-    fontSize: 9,
-    fontWeight: "bold",
-    marginBottom: 4,
+  columnRight: {
+    width: "48%",
+    alignItems: "flex-end",
   },
 
-  regularText: {
+  sectionLabel: {
     fontSize: 8,
+    fontWeight: "bold",
+    marginBottom: 3,
+    color: "#000",
+  },
+
+  sectionLabelRight: {
+    fontSize: 8,
+    fontWeight: "bold",
+    marginBottom: 3,
+    color: "#000",
+    textAlign: "right",
+  },
+
+  infoText: {
+    fontSize: 7,
+    lineHeight: 1.4,
+    color: "#333",
+  },
+
+  infoTextRight: {
+    fontSize: 7,
+    lineHeight: 1.4,
+    color: "#333",
+    textAlign: "right",
+  },
+
+  boldInfo: {
+    fontSize: 7,
+    fontWeight: "bold",
     lineHeight: 1.4,
   },
 
-  boldText: {
-    fontSize: 8,
+  boldInfoRight: {
+    fontSize: 7,
     fontWeight: "bold",
     lineHeight: 1.4,
+    textAlign: "right",
   },
 
+  // Vehicle Details (for job-card)
+  vehicleSection: {
+    marginBottom: 8,
+    padding: 5,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 2,
+  },
+
+  // Table Styles
   table: {
-    marginBottom: 10,
+    marginTop: 5,
+    marginBottom: 8,
   },
 
   tableHeader: {
     flexDirection: "row",
-    borderTop: "1px solid #000",
-    borderBottom: "1px solid #000",
-    paddingVertical: 4,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#e8e8e8",
+    borderTop: "1pt solid #000",
+    borderBottom: "1pt solid #000",
+    paddingVertical: 3,
+    paddingHorizontal: 2,
   },
 
   tableRow: {
     flexDirection: "row",
-    borderBottom: "1px solid #ccc",
-    paddingVertical: 4,
+    borderBottom: "0.5pt solid #ccc",
+    paddingVertical: 3,
+    paddingHorizontal: 2,
   },
 
-  col1: { width: "5%", fontSize: 8, paddingLeft: 2 },
-  col2: { width: "30%", fontSize: 8, paddingLeft: 2 },
-  col3: { width: "18%", fontSize: 8, paddingLeft: 2 },
-  col4: { width: "12%", fontSize: 8, paddingLeft: 2 },
-  col5: { width: "13%", fontSize: 8, paddingLeft: 2, textAlign: "right" },
-  col6: { width: "10%", fontSize: 8, paddingLeft: 2, textAlign: "right" },
-  col7: { width: "12%", fontSize: 8, paddingLeft: 2, textAlign: "right", paddingRight: 2 },
-
-  headerText: {
+  headerCell: {
+    fontSize: 7,
     fontWeight: "bold",
   },
 
+  cell: {
+    fontSize: 7,
+  },
+
+  // Column widths
+  colNum: { width: "5%" },
+  colName: { width: "28%" },
+  colCode: { width: "15%" },
+  colHSN: { width: "12%" },
+  colMRP: { width: "13%", textAlign: "right" },
+  colGST: { width: "10%", textAlign: "right" },
+  colAmount: { width: "17%", textAlign: "right", paddingRight: 2 },
+
+  // Amount in Words
   amountWordsBox: {
-    border: "1px solid #000",
-    padding: 6,
-    marginBottom: 10,
+    border: "1pt solid #000",
+    padding: 4,
+    marginBottom: 8,
   },
 
   amountWordsLabel: {
-    fontSize: 8,
-    marginBottom: 2,
+    fontSize: 7,
+    marginBottom: 1,
   },
 
-  amountWordsValue: {
-    fontSize: 8,
+  amountWords: {
+    fontSize: 7,
     fontWeight: "bold",
   },
 
-  totalsSection: {
-    marginLeft: "55%",
-    marginBottom: 12,
+  // Totals Section
+  totalsContainer: {
+    width: "50%",
+    alignSelf: "flex-end",
+    marginBottom: 8,
   },
 
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 3,
+    marginBottom: 2,
   },
 
   totalLabel: {
-    fontSize: 8,
-    width: "60%",
+    fontSize: 7,
   },
 
   totalValue: {
-    fontSize: 8,
-    width: "40%",
+    fontSize: 7,
     textAlign: "right",
   },
 
   grandTotalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    borderTop: "1px solid #000",
+    borderTop: "1pt solid #000",
     paddingTop: 3,
-    marginTop: 3,
+    marginTop: 2,
   },
 
   grandTotalLabel: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "bold",
-    width: "60%",
   },
 
   grandTotalValue: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "bold",
-    width: "40%",
     textAlign: "right",
   },
 
+  // Footer Section
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 10,
+    paddingTop: 8,
+    borderTop: "0.5pt solid #ccc",
   },
 
   serviceInfo: {
@@ -188,58 +244,63 @@ const styles = StyleSheet.create({
   },
 
   serviceLabel: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: "bold",
-    marginBottom: 2,
+    marginBottom: 1,
   },
 
   serviceValue: {
-    fontSize: 8,
-    marginBottom: 6,
+    fontSize: 7,
+    marginBottom: 4,
   },
 
-  qrSection: {
+  qrContainer: {
     width: "35%",
     alignItems: "flex-end",
   },
 
   qrCode: {
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
   },
 });
 
-// Helper function to convert number to words
+// ========== HELPER FUNCTIONS ==========
+
 const numberToWords = (num) => {
   if (!num || num === 0) return "Zero Rupees only";
-  
+
   const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
   const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
   const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
 
-  const convertLessThanThousand = (n) => {
+  const convert = (n) => {
     if (n === 0) return "";
     if (n < 10) return ones[n];
     if (n < 20) return teens[n - 10];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + ones[n % 10] : "");
-    return ones[Math.floor(n / 100)] + " Hundred" + (n % 100 !== 0 ? " and " + convertLessThanThousand(n % 100) : "");
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
+    return ones[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
   };
 
-  const crores = Math.floor(num / 10000000);
-  const lakhs = Math.floor((num % 10000000) / 100000);
-  const thousands = Math.floor((num % 100000) / 1000);
+  const crore = Math.floor(num / 10000000);
+  const lakh = Math.floor((num % 10000000) / 100000);
+  const thousand = Math.floor((num % 100000) / 1000);
   const remainder = num % 1000;
 
   let words = "";
-  if (crores > 0) words += convertLessThanThousand(crores) + " Crore ";
-  if (lakhs > 0) words += convertLessThanThousand(lakhs) + " Lakh ";
-  if (thousands > 0) words += convertLessThanThousand(thousands) + " Thousand ";
-  if (remainder > 0) words += convertLessThanThousand(remainder);
+  if (crore > 0) words += convert(crore) + " Crore ";
+  if (lakh > 0) words += convert(lakh) + " Lakh ";
+  if (thousand > 0) words += convert(thousand) + " Thousand ";
+  if (remainder > 0) words += convert(remainder);
 
   return words.trim() + " Rupees only";
 };
 
-// Helper function to format date
+const formatCurrency = (amount) => {
+  if (!amount && amount !== 0) return "₹ 0.00";
+  return `₹ ${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 const formatDate = (dateString) => {
   if (!dateString) return "--";
   const date = new Date(dateString);
@@ -250,15 +311,8 @@ const formatDate = (dateString) => {
   });
 };
 
-// Helper function to format currency
-const formatCurrency = (amount) => {
-  if (!amount && amount !== 0) return "₹ 0.00";
-  return `₹ ${Number(amount).toFixed(2)}`;
-};
+// ========== MAIN PDF COMPONENT ==========
 
-// --------------------------
-// DYNAMIC INVOICE PDF
-// --------------------------
 export default function InvoicePDF({ invoice }) {
   if (!invoice) {
     return (
@@ -270,173 +324,162 @@ export default function InvoicePDF({ invoice }) {
     );
   }
 
-  const {
-    invoiceNumber = "N/A",
-    customer = {},
-    items = [],
-    totals = {},
-    createdAt,
-    nextServiceDate,
-    nextServiceKms,
-  } = invoice;
-
-  const customerName = customer?.name || "N/A";
-  const customerPhone = customer?.phone || "N/A";
-  
-  const subTotal = totals?.subTotal || 0;
-  const sgst = totals?.sgst || 0;
-  const cgst = totals?.cgst || 0;
-  const igst = totals?.igst || 0;
-  const grandTotal = totals?.grandTotal || 0;
-
-  // Calculate GST percentages
-  const gstRate = items.length > 0 && items[0]?.gst ? items[0].gst : 18;
-  const sgstRate = gstRate / 2;
-  const cgstRate = gstRate / 2;
+  // Extract invoice data
+  const items = invoice.items || [];
+  const totals = invoice.totals || {};
+  const customer = invoice.customer || {};
+  const vehicle = invoice.vehicle || {};
+  const isJobCard = invoice.invoiceType === "job-card";
 
   return (
     <Document>
       <Page size="A5" style={styles.page}>
-        {/* HEADER: Logo + Company Info */}
+        {/* ========== HEADER ========== */}
         <View style={styles.header}>
-          <View style={styles.logoSection}>
-            <Image style={styles.logo} src={Logo} />
+          <View style={styles.logoContainer}>
+            <Image src={Logo} style={styles.logo} />
           </View>
 
-          <View style={styles.companySection}>
+          <View style={styles.companyInfo}>
             <Text style={styles.companyName}>SRM MOTORS</Text>
-            <Text style={styles.companyText}>2/89C, Anna Nagar,</Text>
-            <Text style={styles.companyText}>Jayamkondam Main road,</Text>
-            <Text style={styles.companyText}>Sendurai Po & Tk</Text>
-            <Text style={styles.companyText}>Ariyalur DT</Text>
-            <Text style={styles.companyText}>Phone no.: 7825914040</Text>
+            <Text style={styles.companyText}>2/89C, Anna Nagar</Text>
+            <Text style={styles.companyText}>Jayamkondam Main Road</Text>
+            <Text style={styles.companyText}>Sendurai, Ariyalur DT</Text>
+            <Text style={styles.companyText}>Phone: 7825914040</Text>
             <Text style={styles.companyText}>Email: srmmotorssendurai@gmail.com</Text>
             <Text style={styles.companyText}>GSTIN: 33BWLPM0667D1ZM</Text>
-            <Text style={styles.companyText}>State: 33-Tamil Nadu</Text>
+            <Text style={styles.companyText}>State: Tamil Nadu</Text>
           </View>
         </View>
 
-        {/* TAX INVOICE TITLE */}
+        {/* ========== INVOICE TITLE ========== */}
         <Text style={styles.invoiceTitle}>Tax Invoice</Text>
 
-        {/* TWO COLUMN: Bill To + Invoice Details */}
-        <View style={styles.twoColumnRow}>
-          {/* Left: Bill To */}
-          <View style={styles.column}>
-            <Text style={styles.sectionTitle}>Bill To</Text>
-            <Text style={styles.boldText}>{customerName}</Text>
-            <Text style={styles.regularText}>Contact No.: {customerPhone}</Text>
+        {/* ========== BILL TO & INVOICE DETAILS ========== */}
+        <View style={styles.twoColumns}>
+          {/* Bill To - Left Aligned */}
+          <View style={styles.columnLeft}>
+            <Text style={styles.sectionLabel}>Bill To</Text>
+            <Text style={styles.boldInfo}>{customer.name || "N/A"}</Text>
+            <Text style={styles.infoText}>Phone: {customer.phone || "N/A"}</Text>
           </View>
 
-          {/* Right: Invoice Details */}
-          <View style={styles.column}>
-            <Text style={styles.sectionTitle}>Invoice Details</Text>
-            <Text style={styles.regularText}>Invoice No.: {invoiceNumber}</Text>
-            <Text style={styles.regularText}>Date: {formatDate(createdAt)}</Text>
+          {/* Invoice Details - Right Aligned */}
+          <View style={styles.columnRight}>
+            <Text style={styles.sectionLabelRight}>Invoice Details</Text>
+            <Text style={styles.infoTextRight}>Invoice No: {invoice.invoiceNumber || "N/A"}</Text>
+            <Text style={styles.infoTextRight}>Date: {formatDate(invoice.invoiceDate || invoice.createdAt)}</Text>
           </View>
         </View>
 
-        {/* ITEMS TABLE */}
+        {/* ========== VEHICLE DETAILS (Only for Job Card) ========== */}
+        {isJobCard && (
+          <View style={styles.vehicleSection}>
+            <Text style={styles.sectionLabel}>Vehicle Details</Text>
+            <Text style={styles.infoText}>Model: {vehicle.model || "--"}</Text>
+            <Text style={styles.infoText}>Reg. No: {vehicle.registrationNumber || "--"}</Text>
+            <Text style={styles.infoText}>KM Reading: {vehicle.kmReading || "--"}</Text>
+          </View>
+        )}
+
+        {/* ========== ITEMS TABLE ========== */}
         <View style={styles.table}>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.col1, styles.headerText]}>#</Text>
-            <Text style={[styles.col2, styles.headerText]}>Item Name</Text>
-            <Text style={[styles.col3, styles.headerText]}>Item Code</Text>
-            <Text style={[styles.col4, styles.headerText]}>HSN/ SAC</Text>
-            <Text style={[styles.col5, styles.headerText]}>Price/ Unit</Text>
-            <Text style={[styles.col6, styles.headerText]}>GST</Text>
-            <Text style={[styles.col7, styles.headerText]}>Amount</Text>
+            <Text style={[styles.headerCell, styles.colNum]}>#</Text>
+            <Text style={[styles.headerCell, styles.colName]}>Item Name</Text>
+            <Text style={[styles.headerCell, styles.colCode]}>Item Code</Text>
+            <Text style={[styles.headerCell, styles.colHSN]}>HSN/SAC</Text>
+            <Text style={[styles.headerCell, styles.colMRP]}>MRP</Text>
+            <Text style={[styles.headerCell, styles.colGST]}>GST</Text>
+            <Text style={[styles.headerCell, styles.colAmount]}>Amount</Text>
           </View>
 
           {/* Table Rows */}
-          {items && items.length > 0 ? (
-            items.map((item, index) => (
-              <View key={index} style={styles.tableRow}>
-                <Text style={styles.col1}>{index + 1}</Text>
-                <Text style={styles.col2}>{item.itemName || "N/A"}</Text>
-                <Text style={styles.col3}>{item.itemCode || "N/A"}</Text>
-                <Text style={styles.col4}>{item.hsnSac || "N/A"}</Text>
-                <Text style={styles.col5}>
-                  {formatCurrency(item.pricePerUnit)}
-                </Text>
-                <Text style={styles.col6}>{item.gst || 0}%</Text>
-                <Text style={styles.col7}>
-                  {formatCurrency(item.totalAmount)}
-                </Text>
-              </View>
-            ))
+          {items.length > 0 ? (
+            items.map((item, index) => {
+              const gstTotal = (item.CGSTCode || 0) + (item.SGSTCode || 0);
+              return (
+                <View key={index} style={styles.tableRow}>
+                  <Text style={[styles.cell, styles.colNum]}>{index + 1}</Text>
+                  <Text style={[styles.cell, styles.colName]}>{item.partName || "N/A"}</Text>
+                  <Text style={[styles.cell, styles.colCode]}>{item.partNo || "N/A"}</Text>
+                  <Text style={[styles.cell, styles.colHSN]}>{item.tariff || "000000"}</Text>
+                  <Text style={[styles.cell, styles.colMRP]}>{formatCurrency(item.revisedMRP || 0)}</Text>
+                  <Text style={[styles.cell, styles.colGST]}>{gstTotal}%</Text>
+                  <Text style={[styles.cell, styles.colAmount]}>{formatCurrency(item.finalAmount || 0)}</Text>
+                </View>
+              );
+            })
           ) : (
             <View style={styles.tableRow}>
-              <Text style={styles.col1}>1</Text>
-              <Text style={styles.col2}>No items</Text>
-              <Text style={styles.col3}>--</Text>
-              <Text style={styles.col4}>--</Text>
-              <Text style={styles.col5}>₹ 0.00</Text>
-              <Text style={styles.col6}>0%</Text>
-              <Text style={styles.col7}>₹ 0.00</Text>
+              <Text style={[styles.cell, styles.colNum]}>1</Text>
+              <Text style={[styles.cell, styles.colName]}>No items available</Text>
+              <Text style={[styles.cell, styles.colCode]}>--</Text>
+              <Text style={[styles.cell, styles.colHSN]}>--</Text>
+              <Text style={[styles.cell, styles.colMRP]}>₹ 0.00</Text>
+              <Text style={[styles.cell, styles.colGST]}>0%</Text>
+              <Text style={[styles.cell, styles.colAmount]}>₹ 0.00</Text>
             </View>
           )}
         </View>
 
-        {/* AMOUNT IN WORDS BOX */}
+        {/* ========== AMOUNT IN WORDS ========== */}
         <View style={styles.amountWordsBox}>
-          <Text style={styles.amountWordsLabel}>Invoice Amount In Words</Text>
-          <Text style={styles.amountWordsValue}>
-            {numberToWords(Math.round(grandTotal))}
+          <Text style={styles.amountWordsLabel}>Amount in Words:</Text>
+          <Text style={styles.amountWords}>
+            {numberToWords(Math.round(totals.grandTotal || 0))}
           </Text>
         </View>
 
-        {/* TOTALS SECTION */}
-        <View style={styles.totalsSection}>
+        {/* ========== TOTALS ========== */}
+        <View style={styles.totalsContainer}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Sub Total</Text>
-            <Text style={styles.totalValue}>{formatCurrency(subTotal)}</Text>
+            <Text style={styles.totalLabel}>Subtotal</Text>
+            <Text style={styles.totalValue}>{formatCurrency(totals.subTotal || 0)}</Text>
           </View>
 
-          {sgst > 0 && (
+          {totals.totalTax > 0 && (
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>SGST@{sgstRate}%</Text>
-              <Text style={styles.totalValue}>{formatCurrency(sgst)}</Text>
+              <Text style={styles.totalLabel}>Total Tax (GST)</Text>
+              <Text style={styles.totalValue}>{formatCurrency(totals.totalTax)}</Text>
             </View>
           )}
 
-          {cgst > 0 && (
+          {totals.roundOff !== 0 && totals.roundOff !== undefined && (
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>CGST@{cgstRate}%</Text>
-              <Text style={styles.totalValue}>{formatCurrency(cgst)}</Text>
-            </View>
-          )}
-
-          {igst > 0 && (
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>IGST@{gstRate}%</Text>
-              <Text style={styles.totalValue}>{formatCurrency(igst)}</Text>
+              <Text style={styles.totalLabel}>Round Off</Text>
+              <Text style={styles.totalValue}>
+                {totals.roundOff > 0 ? "+" : ""}{formatCurrency(Math.abs(totals.roundOff))}
+              </Text>
             </View>
           )}
 
           <View style={styles.grandTotalRow}>
             <Text style={styles.grandTotalLabel}>Total</Text>
-            <Text style={styles.grandTotalValue}>
-              {formatCurrency(grandTotal)}
-            </Text>
+            <Text style={styles.grandTotalValue}>{formatCurrency(totals.grandTotal || 0)}</Text>
           </View>
         </View>
 
-        {/* FOOTER: Service Info + QR Code */}
+        {/* ========== FOOTER ========== */}
         <View style={styles.footer}>
           <View style={styles.serviceInfo}>
-            <Text style={styles.serviceLabel}>Next Service Date:</Text>
-            <Text style={styles.serviceValue}>
-              {nextServiceDate ? formatDate(nextServiceDate) : "--"}
-            </Text>
-            <Text style={styles.serviceLabel}>Next Service Kms:</Text>
-            <Text style={styles.serviceValue}>
-              {nextServiceKms || "--"}
-            </Text>
+            {isJobCard && (
+              <>
+                <Text style={styles.serviceLabel}>Next Service Date:</Text>
+                <Text style={styles.serviceValue}>
+                  {formatDate(vehicle.nextServiceDate) || "--"}
+                </Text>
+
+                <Text style={styles.serviceLabel}>Next Service KM:</Text>
+                <Text style={styles.serviceValue}>
+                  {vehicle.nextServiceKm || "--"}
+                </Text>
+              </>
+            )}
           </View>
 
-          <View style={styles.qrSection}>
+          <View style={styles.qrContainer}>
             <Image src={QrCode} style={styles.qrCode} />
           </View>
         </View>
