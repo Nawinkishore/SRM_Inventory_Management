@@ -2,7 +2,6 @@
 import { useMutation } from "@tanstack/react-query";
 import api from "@/api/axios";
 import { useDispatch } from "react-redux";
-import { clearAuth } from "../../../store/auth/authSlice";
 import { RESET_STORE, persistor } from "@/store/store";
 
 export const useLogout = () => {
@@ -14,21 +13,21 @@ export const useLogout = () => {
     },
 
     onSuccess: async () => {
-      // clear auth slice data
-      dispatch(clearAuth());
+      // 1. STOP hydration immediately
+      await persistor.pause();
 
-      // wipe entire redux store
+      // 2. WIPE whole Redux store (no old state comes back)
       dispatch({ type: RESET_STORE });
 
-      // clear persisted storage
+      // 3. WIPE persisted storage
       await persistor.purge();
 
-      // safety
+      // 4. Extra safety
       localStorage.clear();
       sessionStorage.clear();
 
-      // redirect
-      window.location.href = "/login";
+      // 5. HARD redirect (no rehydrate glitch)
+      window.location.replace("/login");
     },
   });
 };
