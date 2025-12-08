@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useDispatch } from "react-redux";
-
-import {
-  setSelectedPurchase,
-  updatePurchaseState,
-} from "@/store/purchases/purchaseSlice";
 
 import {
   usePurchaseById,
@@ -49,7 +43,7 @@ const columns = [
   { key: "total", label: "Total" },
 ];
 
-// normalize rows for comparison / saving (ignore pure empty placeholder)
+// normalize rows for saving / comparison
 const normalizeRows = (rows) =>
   (rows || [])
     .filter((r) => {
@@ -66,29 +60,29 @@ const normalizeRows = (rows) =>
     }));
 
 const PurchaseId = () => {
-  const dispatch = useDispatch();
   const { purchaseId } = useParams();
 
+  // Fetch purchase
   const { data: purchase, isLoading } = usePurchaseById(purchaseId);
+
+  // Update mutation
   const { mutate: updatePurchase, isLoading: saving } =
     useUpdatePurchase(purchaseId);
 
   const [orderName, setOrderName] = useState("");
   const [rows, setRows] = useState([EMPTY_ROW]);
 
-  // originals (for edit detection)
+  // original values store
   const [origName, setOrigName] = useState("");
   const [origRows, setOrigRows] = useState([EMPTY_ROW]);
 
-  // editing state
+  // edit flags
   const [editing, setEditing] = useState(false);
   const [isEdited, setIsEdited] = useState(false);
 
   /** Load initial purchase */
   useEffect(() => {
     if (purchase) {
-      dispatch(setSelectedPurchase(purchase));
-
       const formatted =
         purchase.items && purchase.items.length > 0
           ? purchase.items.map((r) => ({
@@ -106,17 +100,16 @@ const PurchaseId = () => {
       setIsEdited(false);
       setEditing(false);
     }
-  }, [purchase, dispatch]);
+  }, [purchase]);
 
-  /** Utility: detect duplicate item numbers */
+  /** Duplicate item detection */
   const getDuplicateItems = (list) => {
     const seen = new Set();
     const duplicates = new Set();
 
     list.forEach((r) => {
       const key = r.itemNumber?.trim();
-      if (!key) return; // ignore empty
-
+      if (!key) return;
       if (seen.has(key)) duplicates.add(key);
       else seen.add(key);
     });
@@ -127,7 +120,7 @@ const PurchaseId = () => {
   const duplicateItems = getDuplicateItems(rows);
   const hasDuplicates = duplicateItems.size > 0;
 
-  /** Check whether anything changed vs original */
+  /** Compare vs original */
   const checkIfEdited = (name, currentRows) => {
     if (name !== origName) return true;
 
@@ -141,17 +134,15 @@ const PurchaseId = () => {
     return false;
   };
 
-  /** Row change handler */
+  /** Row edit handler */
   const handleEdit = (index, field, value) => {
     setRows((prev) => {
       const updated = [...prev];
-
       updated[index] = {
         ...updated[index],
         [field]: value,
       };
 
-      // recalc total
       const qty = Number(updated[index].quantity) || 0;
       const price = Number(updated[index].price) || 0;
       updated[index].total = qty * price;
@@ -161,13 +152,13 @@ const PurchaseId = () => {
     });
   };
 
-  /** Name change handler */
+  /** Name edit */
   const handleNameChange = (value) => {
     setOrderName(value);
     setIsEdited(checkIfEdited(value, rows));
   };
 
-  /** Add new row */
+  /** Add row */
   const addRow = () => {
     const updated = [...rows, { ...EMPTY_ROW }];
     setRows(updated);
@@ -180,10 +171,7 @@ const PurchaseId = () => {
 
     let updated = rows.filter((_, i) => i !== index);
 
-    // keep at least one placeholder row for editing
-    if (updated.length === 0) {
-      updated = [{ ...EMPTY_ROW }];
-    }
+    if (updated.length === 0) updated = [{ ...EMPTY_ROW }];
 
     setRows(updated);
     setIsEdited(checkIfEdited(orderName, updated));
@@ -198,21 +186,12 @@ const PurchaseId = () => {
 
     const cleanedItems = normalizeRows(rows);
 
-    // update Redux local state
-    dispatch(
-      updatePurchaseState({
-        id: purchaseId,
-        data: { orderName, items: cleanedItems },
-      })
-    );
-
     updatePurchase(
       { orderName, items: cleanedItems },
       {
         onSuccess: () => {
           toast.success("Updated Successfully");
 
-          // rebuild rows from clean items and maybe one placeholder
           const nextRows =
             cleanedItems.length > 0 ? cleanedItems : [{ ...EMPTY_ROW }];
 
@@ -223,7 +202,7 @@ const PurchaseId = () => {
           setEditing(false);
         },
         onError: () => {
-          toast.error("Failed, reverting back");
+          toast.error("Failed, reverting");
           setOrderName(origName);
           setRows(origRows);
           setIsEdited(false);
@@ -233,7 +212,7 @@ const PurchaseId = () => {
     );
   };
 
-  /** Cancel editing */
+  /** Cancel */
   const handleCancel = () => {
     setOrderName(origName);
     setRows(origRows);
@@ -249,7 +228,6 @@ const PurchaseId = () => {
       year: "numeric",
     });
 
-  // for stats & totals, ignore pure placeholder rows
   const nonEmptyRows = normalizeRows(rows);
   const grandTotal = nonEmptyRows.reduce(
     (sum, r) => sum + (Number(r.total) || 0),
@@ -287,12 +265,12 @@ const PurchaseId = () => {
         </div>
       ) : (
         <>
-          {/* Top Bar */}
+          {/* Back + Edit Buttons */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <Link to="/dashboard/purchase">
               <Button
                 variant="outline"
-                className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50"
               >
                 <ArrowLeft size={16} className="mr-2" /> Back to List
               </Button>
@@ -301,7 +279,7 @@ const PurchaseId = () => {
             {!editing ? (
               <Button
                 onClick={() => setEditing(true)}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-200"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
               >
                 <Pencil size={16} className="mr-2" /> Edit Purchase
               </Button>
@@ -314,18 +292,18 @@ const PurchaseId = () => {
                     hasDuplicates
                       ? "bg-red-400 cursor-not-allowed text-white"
                       : isEdited
-                      ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg shadow-emerald-200"
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800"
                       : "bg-slate-300 cursor-not-allowed text-slate-500"
                   }
                 >
-                  <Check size={16} className="mr-2" />
-                  {saving ? "Saving..." : "Save Changes"}
+                  <Check size={16} className="mr-2" />{" "}
+                  {saving ? "Saving..." : "Save"}
                 </Button>
 
                 <Button
                   variant="outline"
                   onClick={handleCancel}
-                  className="border-2 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                  className="border-2 border-red-300 text-red-600 hover:bg-red-50"
                 >
                   <X size={16} className="mr-2" /> Cancel
                 </Button>
@@ -333,115 +311,79 @@ const PurchaseId = () => {
             )}
           </div>
 
-          {/* Duplicate Warning Banner */}
+          {/* Duplicate Warning */}
           {hasDuplicates && editing && (
             <div className="mb-6 bg-red-50 border-2 border-red-300 rounded-xl p-4 flex items-start gap-3">
-              <AlertCircle className="text-red-600 flex-shrink-0" size={24} />
+              <AlertCircle className="text-red-600" size={24} />
               <div>
                 <p className="font-semibold text-red-800">
                   Duplicate Item Numbers Detected
                 </p>
                 <p className="text-sm text-red-600 mt-1">
-                  Please fix duplicate item numbers before saving. Highlighted
-                  rows need attention.
+                  Fix the duplicate item numbers before saving.
                 </p>
               </div>
             </div>
           )}
 
-          {/* STATS CARDS */}
+          {/* STATS */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm font-medium">
-                    Total Items
-                  </p>
-                  <p className="text-3xl font-bold mt-1">{totalItems}</p>
-                </div>
-                <div className="bg-opacity-20 p-3 rounded-lg">
-                  <ShoppingCart size={24} />
-                </div>
-              </div>
+              <p className="text-blue-100 text-sm">Total Items</p>
+              <p className="text-3xl font-bold mt-1">{totalItems}</p>
             </div>
 
             <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm font-medium">
-                    Total Quantity
-                  </p>
-                  <p className="text-3xl font-bold mt-1">{totalQuantity}</p>
-                </div>
-                <div className="bg-opacity-20 p-3 rounded-lg">
-                  <Package size={24} />
-                </div>
-              </div>
+              <p className="text-purple-100 text-sm">Total Quantity</p>
+              <p className="text-3xl font-bold mt-1">{totalQuantity}</p>
             </div>
 
             <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-5 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-emerald-100 text-sm font-medium">
-                    Grand Total
-                  </p>
-                  <p className="text-3xl font-bold mt-1">
-                    ₹{grandTotal.toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-opacity-20 p-3 rounded-lg">
-                  <DollarSign size={24} />
-                </div>
-              </div>
+              <p className="text-emerald-100 text-sm">Grand Total</p>
+              <p className="text-3xl font-bold mt-1">
+                ₹{grandTotal.toLocaleString()}
+              </p>
             </div>
           </div>
 
           {/* ORDER INFO */}
-          <div className="bg-white rounded-xl shadow-md border border-slate-200 p-6 mb-6">
-            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <div className="h-1 w-1 bg-blue-600 rounded-full"></div>
-              Order Information
-            </h2>
+          <div className="bg-white rounded-xl shadow-md p-6 mb-6 border border-slate-200">
+            <h2 className="text-lg font-bold mb-4">Order Information</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-600 mb-2 flex items-center gap-2">
-                  <Package size={16} className="text-blue-600" />
+                <label className="block text-sm font-semibold mb-2">
                   Order Name
                 </label>
                 <input
                   value={orderName}
                   disabled={!editing}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className={`w-full border-2 rounded-lg px-4 py-3 text-sm transition-colors ${
+                  className={`w-full border-2 rounded-lg px-4 py-3 text-sm ${
                     editing
-                      ? "border-blue-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                      : "bg-slate-50 border-slate-200 text-slate-600"
+                      ? "border-blue-300 focus:border-blue-500 focus:ring-blue-200"
+                      : "bg-slate-50 border-slate-200"
                   }`}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-600 mb-2 flex items-center gap-2">
-                  <Calendar size={16} className="text-blue-600" />
+                <label className="block text-sm font-semibold mb-2">
                   Created Date
                 </label>
                 <input
                   value={createdAt || ""}
                   readOnly
-                  className="w-full border-2 border-slate-200 bg-slate-50 rounded-lg px-4 py-3 text-sm text-slate-600"
+                  className="w-full border-2 border-slate-200 bg-slate-50 rounded-lg px-4 py-3 text-sm"
                 />
               </div>
             </div>
           </div>
 
           {/* ITEMS TABLE */}
-          <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-            <div className="p-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <div className="h-1 w-1 bg-blue-600 rounded-full"></div>
-                Purchase Items
-              </h2>
+          <div className="bg-white rounded-xl shadow-md border overflow-hidden">
+            <div className="p-5 border-b bg-slate-50">
+              <h2 className="text-lg font-bold">Purchase Items</h2>
             </div>
 
             <div className="p-4 overflow-x-auto">
@@ -451,19 +393,14 @@ const PurchaseId = () => {
                 </TableCaption>
 
                 <TableHeader>
-                  <TableRow className="bg-slate-50 border-b-2 border-slate-200 hover:bg-slate-50">
+                  <TableRow className="bg-slate-50 border-b-2 border-slate-200">
                     {columns.map((c) => (
-                      <TableHead
-                        key={c.key}
-                        className="p-3 text-center font-bold text-slate-700"
-                      >
+                      <TableHead key={c.key} className="text-center p-3">
                         {c.label}
                       </TableHead>
                     ))}
                     {editing && (
-                      <TableHead className="p-3 text-center font-bold text-slate-700">
-                        Action
-                      </TableHead>
+                      <TableHead className="p-3 text-center">Action</TableHead>
                     )}
                   </TableRow>
                 </TableHeader>
@@ -477,12 +414,12 @@ const PurchaseId = () => {
                     return (
                       <TableRow
                         key={i}
-                        className={`border-b border-slate-100 transition-colors ${
+                        className={`border-b ${
                           isDuplicateRow
-                            ? "bg-red-50 hover:bg-red-100"
+                            ? "bg-red-50"
                             : i % 2 === 0
-                            ? "bg-white hover:bg-blue-50"
-                            : "bg-slate-50 hover:bg-blue-50"
+                            ? "bg-white"
+                            : "bg-slate-50"
                         }`}
                       >
                         {columns.map((c) => (
@@ -493,14 +430,14 @@ const PurchaseId = () => {
                               onChange={(e) =>
                                 handleEdit(i, c.key, e.target.value)
                               }
-                              className={`w-full px-3 py-2 border-2 rounded-lg text-center transition-colors ${
-                                isDuplicateRow && c.key === "itemNumber"
-                                  ? "border-red-500 bg-red-50 focus:border-red-600 focus:ring-2 focus:ring-red-200"
-                                  : c.key === "total"
+                              className={`w-full px-3 py-2 border-2 rounded-lg text-center ${
+                                c.key === "total"
                                   ? "bg-blue-50 border-blue-200 font-bold text-blue-700"
+                                  : isDuplicateRow && c.key === "itemNumber"
+                                  ? "border-red-500 bg-red-50"
                                   : editing
-                                  ? "border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                  : "bg-slate-50 border-slate-200 text-slate-600"
+                                  ? "border-slate-300 focus:border-blue-500"
+                                  : "bg-slate-50 border-slate-200"
                               }`}
                             />
                           </TableCell>
@@ -512,7 +449,6 @@ const PurchaseId = () => {
                               variant="destructive"
                               size="icon"
                               onClick={() => removeRow(i)}
-                              className="bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors shadow-sm"
                             >
                               <Trash size={16} />
                             </Button>
@@ -527,10 +463,7 @@ const PurchaseId = () => {
               {/* ADD ROW */}
               {editing && (
                 <div className="mt-6">
-                  <Button
-                    onClick={addRow}
-                    className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-200"
-                  >
+                  <Button onClick={addRow}>
                     <Plus size={16} /> Add New Item
                   </Button>
                 </div>
@@ -538,14 +471,14 @@ const PurchaseId = () => {
             </div>
           </div>
 
-          {/* SUMMARY FOOTER */}
+          {/* FOOTER SUMMARY */}
           <div className="mt-6 bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl shadow-xl p-6 text-white">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex justify-between">
               <div>
                 <p className="text-slate-300 text-sm mb-1">Order Summary</p>
                 <p className="text-2xl font-bold">{orderName}</p>
               </div>
-              <div className="text-right">
+              <div>
                 <p className="text-slate-300 text-sm mb-1">Grand Total</p>
                 <p className="text-3xl font-bold text-emerald-400">
                   ₹{grandTotal.toLocaleString()}
