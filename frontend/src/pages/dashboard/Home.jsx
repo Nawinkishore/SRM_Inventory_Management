@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { useSelector } from "react-redux";
+
 import {
   TrendingUp,
   TrendingDown,
@@ -17,11 +18,8 @@ const Home = () => {
   const { user } = useSelector((state) => state.auth);
   const userId = user?._id;
 
-  // Fetch ALL invoices (for totals)
-  const {
-    data: invoiceData,
-    isLoading: invoiceLoading,
-  } = useInvoices({
+  // ===== Fetch ALL invoices =====
+  const { data: invoiceData, isLoading: invoiceLoading } = useInvoices({
     page: 1,
     limit: 1000,
     type: "all",
@@ -31,49 +29,74 @@ const Home = () => {
   });
 
   const invoices = invoiceData?.data || [];
-  
-  // Fetch ALL purchases (for stock count)
-  const {
-    data: purchaseData,
-    isLoading: purchaseLoading,
-  } = usePurchaseList({
+
+  // ===== Fetch ALL purchases =====
+  const { data: purchaseData, isLoading: purchaseLoading } = usePurchaseList({
     userId,
     page: 1,
     limit: 1000,
   });
 
   const purchases = purchaseData?.purchases || [];
+
+  // Flatten purchase items
   const purchaseItems = purchases.flatMap((p) => p.items || []);
 
-  // ===== COMPUTE STATS =====
+  // ==============================
+  // 🔥 MERGE STOCK BY ITEM NUMBER
+  // ==============================
   const stats = useMemo(() => {
-    const totalInvoices = invoices.length;
+    const inv = invoices || [];
+    const pur = purchases || [];
+    const items = purchaseItems || [];
 
-    const totalRevenue = invoices.reduce(
+    // --- ADD STOCK MERGING ---
+    const stockMap = {};
+
+    items.forEach((item) => {
+      const key = item.itemNumber;
+      if (!stockMap[key]) {
+        stockMap[key] = {
+          itemNumber: item.itemNumber,
+          quantity: 0,
+        };
+      }
+      stockMap[key].quantity += Number(item.quantity || 0);
+    });
+
+    const mergedStock = Object.values(stockMap);
+
+    // After merging, now check low stock (qty < 2)
+    const lowStockItems = mergedStock.filter((it) => it.quantity < 2);
+
+    // TOTAL REVENUE
+    const totalRevenue = inv.reduce(
       (sum, inv) => sum + (inv?.totals?.grandTotal || 0),
       0
     );
 
-    const pendingInvoices = invoices.filter((inv) => inv.balanceDue > 0);
-    const paidInvoices = invoices.filter((inv) => inv.balanceDue <= 0);
+    // PENDING INVOICES
+    const pendingInvoices = inv.filter((i) => (i.balanceDue || 0) > 0);
 
-    const lowStockItems = purchaseItems.filter(
-      (item) => Number(item.quantity) < 2 // THRESHOLD
-    );
+    // Recent 4 invoices sorted by date
+    const recentInvoices = [...inv]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 4);
 
     return {
-      totalInvoices,
+      totalInvoices: inv.length,
       totalRevenue,
-      invoiceGrowth: totalInvoices > 10 ? 12.4 : 0,
       revenueGrowth: totalRevenue > 5000 ? 10.6 : 0,
+      invoiceGrowth: inv.length > 10 ? 12.4 : 0,
       lowStockItems,
-      totalProducts: purchaseItems.length,
+      totalProducts: mergedStock.length,
       pendingInvoices: pendingInvoices.length,
-      recentInvoices: invoices.slice(0, 4),
-      recentOrders: purchases.length,
+      recentInvoices,
+      recentOrders: pur.length,
     };
-  }, [invoices, purchaseItems, purchases]);
+  }, [invoices, purchases, purchaseItems]);
 
+  // ===== Stat Card UI Component =====
   const StatCard = ({ title, value, growth, icon: Icon, color }) => (
     <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
       <div className="flex items-center justify-between mb-4">
@@ -111,6 +134,7 @@ const Home = () => {
 
   return (
     <div className="p-8">
+      {/* HEADER */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">
           Welcome {user?.name}!
@@ -153,14 +177,13 @@ const Home = () => {
         />
       </div>
 
-      {/* ===== RECENT INVOICES ===== */}
+      {/* ===== RECENT + LOW STOCK ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Recent Invoices */}
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">
-              Recent Invoices
-            </h2>
-          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">
+            Recent Invoices
+          </h2>
 
           <div className="space-y-4">
             {stats.recentInvoices.map((inv) => (
@@ -169,8 +192,12 @@ const Home = () => {
                 className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <div>
-                  <p className="font-semibold text-gray-800">{inv.invoiceNumber}</p>
-                  <p className="text-sm text-gray-600">{inv.customer?.name}</p>
+                  <p className="font-semibold text-gray-800">
+                    {inv.invoiceNumber}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {inv.customer?.name}
+                  </p>
                   <p className="text-xs text-gray-500">
                     {new Date(inv.createdAt).toLocaleDateString("en-IN")}
                   </p>
@@ -178,7 +205,7 @@ const Home = () => {
 
                 <div className="text-right">
                   <p className="font-bold text-gray-800">
-                    ₹{inv?.totals?.grandTotal?.toLocaleString("en-IN")}
+                    ₹{inv.totals?.grandTotal?.toLocaleString("en-IN")}
                   </p>
 
                   <span
@@ -196,7 +223,7 @@ const Home = () => {
           </div>
         </div>
 
-        {/* ===== LOW STOCK ITEMS ===== */}
+        {/* Low Stock Items */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-800">Low Stock Items</h2>
@@ -205,30 +232,37 @@ const Home = () => {
 
           <div className="space-y-4">
             {stats.lowStockItems.map((item, index) => (
-              <div key={index} className="p-4 bg-red-50 rounded-lg border border-red-200">
+              <div
+                key={index}
+                className="p-4 bg-red-50 border border-red-200 rounded-lg"
+              >
                 <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="font-semibold text-gray-800">{item.itemNumber}</p>
-                    {item.group && (
-                      <p className="text-sm text-gray-600">{item.group}</p>
-                    )}
-                  </div>
+                  <p className="font-semibold text-gray-800">
+                    {item.itemNumber}
+                  </p>
+
                   <span className="text-xs bg-red-200 text-red-800 px-2 py-1 rounded">
                     Low Stock
                   </span>
                 </div>
 
-                <div className="text-sm text-gray-600">
-                  Qty:
-                  <span className="font-bold text-red-600 ml-1">{item.quantity}</span>
-                </div>
+                <p className="text-sm text-gray-600">
+                  Qty:{" "}
+                  <span className="font-bold text-red-600">
+                    {item.quantity}
+                  </span>
+                </p>
               </div>
             ))}
+
+            {stats.lowStockItems.length === 0 && (
+              <p className="text-gray-600 text-sm">All items in good stock.</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ===== FOOTER STATS ===== */}
+      {/* ===== FOOTER CARDS ===== */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-6 text-white">
           <ShoppingCart className="w-8 h-8 mb-3 opacity-80" />
