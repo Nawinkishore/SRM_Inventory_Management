@@ -67,7 +67,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="profile" element={<Profile />} />
 
-          <Route path="excel" element={<Excel />} />
+          {/* <Route path="excel" element={<Excel />} /> */}
 
           {/* Invoice Routes */}
           <Route path="quotation" element={<QuotationPage />} />

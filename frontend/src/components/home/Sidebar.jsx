@@ -11,7 +11,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     {id :'invoiceList', label:'Invoice List', icon: Container, path:'/dashboard/invoices' },
     {id :'quotation', label:'Quotation', icon: EqualApproximately , path:'/dashboard/quotation' },
     {id :'purchase' ,label:'Purchase Order', icon: ShoppingCart, path:'/dashboard/purchase' },
-    {id :'excel',label:'Import Excel', icon: Sheet, path:'/dashboard/excel' },
+    // {id :'excel',label:'Import Excel', icon: Sheet, path:'/dashboard/excel' },
     
     
   ];

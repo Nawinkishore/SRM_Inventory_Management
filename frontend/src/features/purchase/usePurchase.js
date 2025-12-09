@@ -81,3 +81,16 @@ export const useDeletePurchase = (userId) => {
     },
   });
 };
+
+// usePurchase.js
+
+export const useNextPurchaseNumber = () => {
+  return useQuery({
+    queryKey: ["nextPurchaseNumber"],
+    queryFn: async () => {
+      const response = await api.get("/purchase/nextPurchaseNumber");
+      return response.data.nextPurchaseNumber; // ← FIX
+    },
+  });
+};
+

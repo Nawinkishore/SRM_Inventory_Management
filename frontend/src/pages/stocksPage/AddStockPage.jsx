@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import {
@@ -10,9 +11,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash, Package, Calendar, FileText, ShoppingCart } from "lucide-react";
+import {
+  Plus,
+  Trash,
+  Package,
+  Calendar,
+  FileText,
+  ShoppingCart,
+} from "lucide-react";
 
-import { useCreatePurchase } from "@/features/purchase/usePurchase";
+import {
+  useCreatePurchase,
+  useNextPurchaseNumber,
+} from "@/features/purchase/usePurchase";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 
@@ -30,11 +41,18 @@ const configureColumns = [
 
 const AddStockPage = () => {
   const { user } = useSelector((state) => state.auth);
+  const { data: nextPurchaseNumber } = useNextPurchaseNumber();
   const [rows, setRows] = useState([
     { itemNumber: "", quantity: "", price: "", total: "" },
   ]);
   const { mutate: createPurchase, loading } = useCreatePurchase();
   const [orderName, setOrderName] = useState("");
+  useEffect(() => {
+    if (nextPurchaseNumber) {
+      setOrderName(nextPurchaseNumber);
+    }
+  }, [nextPurchaseNumber]);
+
   const date = new Date().toLocaleDateString();
 
   const handleChange = (index, field, value) => {
@@ -69,7 +87,6 @@ const AddStockPage = () => {
     createPurchase(purchaseData, {
       onSuccess: (data) => {
         toast.success(data.message || "Purchase order created successfully");
-        setOrderName("");
         setRows([{ itemNumber: "", quantity: "", price: "", total: "" }]);
       },
       onError: (error) => {
@@ -80,18 +97,21 @@ const AddStockPage = () => {
     });
   };
 
-  const grandTotal = rows.reduce((sum, row) => sum + (parseFloat(row.total) || 0), 0);
+  const grandTotal = rows.reduce(
+    (sum, row) => sum + (parseFloat(row.total) || 0),
+    0
+  );
 
   // Check for duplicate item numbers
   const getDuplicateItemNumbers = () => {
     const itemNumbers = rows
-      .map(row => row.itemNumber.trim())
-      .filter(num => num !== "");
-    
-    const duplicates = itemNumbers.filter((item, index) => 
-      itemNumbers.indexOf(item) !== index
+      .map((row) => row.itemNumber.trim())
+      .filter((num) => num !== "");
+
+    const duplicates = itemNumbers.filter(
+      (item, index) => itemNumbers.indexOf(item) !== index
     );
-    
+
     return [...new Set(duplicates)];
   };
 
@@ -111,8 +131,8 @@ const AddStockPage = () => {
           {/* Back Button & Title */}
           <div className="flex items-center gap-4">
             <Link to="/dashboard/purchase">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="shadow-sm hover:shadow-md transition-all duration-200 border-slate-300 hover:border-blue-400"
               >
                 ← Back
@@ -122,14 +142,19 @@ const AddStockPage = () => {
               <div className="p-2 bg-blue-600 rounded-lg">
                 <ShoppingCart className="text-white" size={20} />
               </div>
-              <h1 className="text-xl font-bold text-slate-800">New Purchase Order</h1>
+              <h1 className="text-xl font-bold text-slate-800">
+                New Purchase Order
+              </h1>
             </div>
           </div>
 
           {/* Order Info Inputs */}
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <div className="relative">
-              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <FileText
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                size={18}
+              />
               <input
                 value={orderName}
                 onChange={(e) => setOrderName(e.target.value)}
@@ -142,7 +167,10 @@ const AddStockPage = () => {
             </div>
 
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+              <Calendar
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                size={18}
+              />
               <input
                 type="text"
                 value={date}
@@ -165,7 +193,9 @@ const AddStockPage = () => {
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">Stock Items</h2>
-              <p className="text-blue-100 text-sm">Add items to your purchase order</p>
+              <p className="text-blue-100 text-sm">
+                Add items to your purchase order
+              </p>
             </div>
           </div>
         </div>
@@ -193,8 +223,8 @@ const AddStockPage = () => {
 
                 <TableBody>
                   {rows.map((row, rowIndex) => (
-                    <TableRow 
-                      key={rowIndex} 
+                    <TableRow
+                      key={rowIndex}
                       className="hover:bg-blue-50/50 transition-colors border-b border-slate-100"
                     >
                       {configureColumns.map((col) => (
@@ -214,17 +244,19 @@ const AddStockPage = () => {
                                 ${
                                   col.key === "total"
                                     ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 font-bold text-blue-900 cursor-not-allowed"
-                                    : col.key === "itemNumber" && isItemNumberDuplicate(row[col.key])
+                                    : col.key === "itemNumber" &&
+                                      isItemNumberDuplicate(row[col.key])
                                     ? "border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-red-50"
                                     : "border-slate-300 hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 }
                               `}
                             />
-                            {col.key === "itemNumber" && isItemNumberDuplicate(row[col.key]) && (
-                              <div className="absolute -bottom-5 left-0 text-xs text-red-600 font-medium">
-                                Duplicate item
-                              </div>
-                            )}
+                            {col.key === "itemNumber" &&
+                              isItemNumberDuplicate(row[col.key]) && (
+                                <div className="absolute -bottom-5 left-0 text-xs text-red-600 font-medium">
+                                  Duplicate item
+                                </div>
+                              )}
                           </div>
                         </TableCell>
                       ))}
@@ -256,7 +288,9 @@ const AddStockPage = () => {
                          shadow-md hover:shadow-lg transition-all duration-200"
               >
                 <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-200">
-                  <span className="text-sm font-bold text-slate-700">Item #{rowIndex + 1}</span>
+                  <span className="text-sm font-bold text-slate-700">
+                    Item #{rowIndex + 1}
+                  </span>
                   <div className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
                     {row.itemNumber || "New"}
                   </div>
@@ -283,17 +317,19 @@ const AddStockPage = () => {
                           ${
                             col.key === "total"
                               ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 font-bold text-blue-900"
-                              : col.key === "itemNumber" && isItemNumberDuplicate(row[col.key])
+                              : col.key === "itemNumber" &&
+                                isItemNumberDuplicate(row[col.key])
                               ? "border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-red-50"
                               : "border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           }
                         `}
                       />
-                      {col.key === "itemNumber" && isItemNumberDuplicate(row[col.key]) && (
-                        <div className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
-                          <span>⚠</span> Duplicate item number
-                        </div>
-                      )}
+                      {col.key === "itemNumber" &&
+                        isItemNumberDuplicate(row[col.key]) && (
+                          <div className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                            <span>⚠</span> Duplicate item number
+                          </div>
+                        )}
                     </div>
                   </div>
                 ))}
@@ -317,15 +353,23 @@ const AddStockPage = () => {
             <div className="mt-6 p-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border-2 border-blue-200">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-600">Total Items:</span>
+                  <span className="text-sm font-semibold text-slate-600">
+                    Total Items:
+                  </span>
                   <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold">
                     {rows.length}
                   </span>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-slate-500 font-medium mb-1">Grand Total</div>
+                  <div className="text-xs text-slate-500 font-medium mb-1">
+                    Grand Total
+                  </div>
                   <div className="text-2xl font-bold text-blue-700">
-                    ₹ {grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₹{" "}
+                    {grandTotal.toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </div>
                 </div>
               </div>
@@ -339,11 +383,16 @@ const AddStockPage = () => {
                 !
               </div>
               <div>
-                <h4 className="font-semibold text-red-800 mb-1">Duplicate Item Numbers Detected</h4>
+                <h4 className="font-semibold text-red-800 mb-1">
+                  Duplicate Item Numbers Detected
+                </h4>
                 <p className="text-sm text-red-700">
-                  The following item numbers are duplicated: <span className="font-semibold">{duplicates.join(", ")}</span>
+                  The following item numbers are duplicated:{" "}
+                  <span className="font-semibold">{duplicates.join(", ")}</span>
                 </p>
-                <p className="text-xs text-red-600 mt-1">Please ensure all item numbers are unique before saving.</p>
+                <p className="text-xs text-red-600 mt-1">
+                  Please ensure all item numbers are unique before saving.
+                </p>
               </div>
             </div>
           )}
@@ -371,7 +420,13 @@ const AddStockPage = () => {
                      disabled:hover:scale-100 disabled:from-slate-400 disabled:to-slate-500"
             >
               <Package size={20} />
-              <span>{loading ? "Saving..." : hasDuplicates ? "Fix Duplicates" : "Save Order"}</span>
+              <span>
+                {loading
+                  ? "Saving..."
+                  : hasDuplicates
+                  ? "Fix Duplicates"
+                  : "Save Order"}
+              </span>
             </button>
           </div>
         </div>
