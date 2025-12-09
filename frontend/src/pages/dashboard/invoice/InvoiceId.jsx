@@ -522,6 +522,7 @@ const InvoiceId = () => {
               <TableRow>
                 <TableHead>Part No</TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>HSN/SAC</TableHead>
                 <TableHead>Qty</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Tax</TableHead>
@@ -535,6 +536,7 @@ const InvoiceId = () => {
                 <TableRow key={i}>
                   <TableCell>{item.partNo}</TableCell>
                   <TableCell>{item.partName}</TableCell>
+                  <TableCell>{item.tariff || "-"}</TableCell>
                   <TableCell>
                     {isEditing ? (
                       <Input

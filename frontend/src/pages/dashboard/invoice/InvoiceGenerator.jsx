@@ -1,730 +1,812 @@
 import React from "react";
+import { Input } from "@/components/ui/input";
+import { Trash2, Plus, FileText } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+
 import {
   useNextInvoiceNumber,
   useCreateInvoice,
 } from "@/features/invoice/useInvoice";
 import { useProductSearch } from "@/features/products/useProduct";
 
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const Table = ({ children, ...props }) => (
-  <div className="w-full overflow-auto">
-    <table className="w-full caption-bottom text-sm" {...props}>
-      {children}
-    </table>
-  </div>
-);
-
-const TableHeader = ({ children, ...props }) => (
-  <thead className="[&_tr]:border-b" {...props}>
-    {children}
-  </thead>
-);
-
-const TableBody = ({ children, ...props }) => (
-  <tbody className="[&_tr:last-child]:border-0" {...props}>
-    {children}
-  </tbody>
-);
-
-const TableHead = ({ children, ...props }) => (
-  <th
-    className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
-    {...props}
-  >
-    {children}
-  </th>
-);
-
-const TableRow = ({ children, ...props }) => (
-  <tr
-    className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-    {...props}
-  >
-    {children}
-  </tr>
-);
-
-const TableCell = ({ children, ...props }) => (
-  <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0" {...props}>
-    {children}
-  </td>
-);
-
-import {
-  Trash2,
-  FileText,
-  User,
-  Car,
-  Package,
-  Save,
-  Wallet,
-} from "lucide-react";
-import { toast } from "sonner";
-
-const invoiceTypes = ["job-card", "sales", "advance"];
-const invoiceStatusOptions = ["draft", "completed"];
-
-const PRODUCT_TABLE_CONFIG = [
-  { key: "partNo", label: "Part No" },
-  { key: "partName", label: "Part Name" },
-  { key: "largeGroup", label: "Group" },
-  { key: "tariff", label: "Tariff" },
-  { key: "revisedMRP", label: "Price (MRP)" },
-  { key: "CGSTCode", label: "CGST %" },
-  { key: "SGSTCode", label: "SGST %" },
-  { key: "IGSTCode", label: "IGST %" },
-];
-
-// product -> invoice item (GST = IGST or (CGST+SGST))
-const convertProductToItem = (product) => {
-  const price = Number(product.revisedMRP) || 0;
-  const qty = 1;
-
-  const gstPercent =
-    product.IGSTCode > 0
-      ? product.IGSTCode
-      : (Number(product.CGSTCode) || 0) + (Number(product.SGSTCode) || 0);
-
-  const itemSubtotal = qty * price;
-  const taxAmount = Math.round((itemSubtotal * gstPercent) / 100);
-  const finalAmount = itemSubtotal + taxAmount;
-
-  return {
-    partNo: product.partNo,
-    partName: product.partName,
-    largeGroup: product.largeGroup,
-    tariff: product.tariff,
-    revisedMRP: price,
-    CGSTCode: product.CGSTCode,
-    SGSTCode: product.SGSTCode,
-    IGSTCode: product.IGSTCode,
-    quantity: qty,
-    discount: 0,
-    taxAmount,
-    finalAmount,
-  };
-};
-
 const InvoiceGenerator = () => {
-  const today = new Date().toISOString().split("T")[0];
-  const { data: nextInvoiceNumber = "" } = useNextInvoiceNumber();
-  const { mutate: createInvoice, isPending } = useCreateInvoice();
+  const { data: invoiceNumber } = useNextInvoiceNumber();
+  const createInvoiceMutation = useCreateInvoice();
 
-  const [invoiceType, setInvoiceType] = React.useState("");
-  const [invoiceStatus, setInvoiceStatus] = React.useState("draft");
+  const now = new Date();
+  const formatedDate =
+    now.getDate().toString().padStart(2, "0") +
+    "/" +
+    (now.getMonth() + 1).toString().padStart(2, "0") +
+    "/" +
+    now.getFullYear();
 
-  const [customer, setCustomer] = React.useState({
+  // Invoice Type State
+  const [invoiceType, setInvoiceType] = React.useState("sales");
+
+  // Customer State
+  const [customerDetails, setCustomerDetails] = React.useState({
     name: "",
     phone: "",
   });
 
-  const [vehicle, setVehicle] = React.useState({
-    model: "",
-    registrationNumber: "",
-    vin: "",
-    kmReading: "",
+  // Vehicle State (only for job-card)
+  const [vehicleDetails, setVehicleDetails] = React.useState({
     nextServiceKm: "",
     nextServiceDate: "",
   });
 
-  const [remarks, setRemarks] = React.useState("");
-  const [items, setItems] = React.useState([]);
-  const [search, setSearch] = React.useState("");
-
-  const [paymentMode, setPaymentMode] = React.useState("cash");
+  // Payment State
+  const [amountType, setAmountType] = React.useState("cash");
   const [amountPaid, setAmountPaid] = React.useState(0);
 
+  // Rows
+  const [rows, setRows] = React.useState([
+    { search: "", product: null, quantity: 1, tariff: "", discount: 0 },
+  ]);
+
+  const [activeRow, setActiveRow] = React.useState(null);
+  const [search, setSearch] = React.useState("");
+
+  // API search
   const { data: products = [] } = useProductSearch(search);
 
-  const updateItemQty = (index, qty) => {
-    const validQty = qty < 1 ? 1 : qty;
-    setItems((prevItems) =>
-      prevItems.map((item, i) => {
-        if (i !== index) return item;
-
-        const itemSubtotal = validQty * item.revisedMRP;
-        const gstPercent =
-          item.IGSTCode > 0
-            ? item.IGSTCode
-            : (Number(item.CGSTCode) || 0) + (Number(item.SGSTCode) || 0);
-
-        const taxAmount = Math.round((itemSubtotal * gstPercent) / 100);
-        const finalAmount = itemSubtotal + taxAmount;
-
-        return {
-          ...item,
-          quantity: validQty,
-          taxAmount,
-          finalAmount,
-        };
-      })
-    );
+  // Helper: taxable amount (price * qty - discount)
+  const getTaxableAmount = (row) => {
+    if (!row.product) return 0;
+    const price = Number(row.product.revisedMRP || 0);
+    const qty = Number(row.quantity || 0);
+    const discount = Number(row.discount || 0);
+    const taxable = price * qty - discount;
+    return taxable > 0 ? taxable : 0;
   };
 
-  const deleteItem = (index) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
-    toast.success("Item removed");
+  // Row-wise CGST / SGST / IGST amounts using rule:
+  // IF IGSTCode > 0 → apply IGST only
+  // ELSE → apply CGST + SGST
+  const rowCGSTAmount = (row) => {
+    if (!row.product) return 0;
+    const igstRate = Number(row.product.IGSTCode || 0);
+    if (igstRate > 0) return 0; // IGST case → no CGST
+    const rate = Number(row.product.CGSTCode || 0);
+    const taxable = getTaxableAmount(row);
+    return (taxable * rate) / 100;
   };
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.quantity * item.revisedMRP,
-    0
-  );
-  const totalGSTAmount = items.reduce(
-    (sum, item) => sum + (Number(item.taxAmount) || 0),
-    0
-  );
-  const grandTotal = subtotal + totalGSTAmount;
+  const rowSGSTAmount = (row) => {
+    if (!row.product) return 0;
+    const igstRate = Number(row.product.IGSTCode || 0);
+    if (igstRate > 0) return 0; // IGST case → no SGST
+    const rate = Number(row.product.SGSTCode || 0);
+    const taxable = getTaxableAmount(row);
+    return (taxable * rate) / 100;
+  };
 
-  const balanceAmount = Math.max(0, grandTotal - (amountPaid || 0));
+  const rowIGSTAmount = (row) => {
+    if (!row.product) return 0;
+    const rate = Number(row.product.IGSTCode || 0);
+    if (rate <= 0) return 0;
+    const taxable = getTaxableAmount(row);
+    return (taxable * rate) / 100;
+  };
 
-  const handleSave = () => {
-    if (!invoiceType) {
-      toast.error("Please select invoice type");
+  const rowGST = (row) =>
+    rowCGSTAmount(row) + rowSGSTAmount(row) + rowIGSTAmount(row);
+
+  const rowTotalBeforeTax = (row) => getTaxableAmount(row);
+
+  const rowFinalAmount = (row) => rowTotalBeforeTax(row) + rowGST(row);
+
+  // Search handler
+  const handleSearchChange = (index, value) => {
+    const updated = [...rows];
+    updated[index].search = value;
+
+    // If search becomes empty → reset this row completely
+    if (!value.trim()) {
+      updated[index] = {
+        search: "",
+        product: null,
+        quantity: 1,
+        tariff: "",
+        discount: 0,
+      };
+      setRows(updated);
+      setSearch("");
+      setActiveRow(null);
       return;
     }
-    if (!customer.name) {
-      toast.error("Customer name is required");
-      return;
-    }
-    if (items.length === 0) {
-      toast.error("Please add at least one item");
+
+    setRows(updated);
+    setActiveRow(index);
+    setSearch(value);
+  };
+
+  // Prevent duplicate
+  const isDuplicateProduct = (productId) => {
+    return rows.some((r) => r.product?._id === productId);
+  };
+
+  // Select product
+  const handleSelectProduct = (index, product) => {
+    if (isDuplicateProduct(product._id)) {
+      toast.error("Product Already Added!", {
+        description: "This product is already in the invoice list.",
+      });
       return;
     }
 
-    const invoiceData = {
-      invoiceNumber: invoiceType !== "quotation" ? nextInvoiceNumber : null,
-      invoiceType,
-      invoiceStatus, // backend will override based on balance
-      invoiceDate: today,
-      customer,
-      vehicle,
-      remarks,
-      items,
-      totals: {
-        subTotal: subtotal,
-        totalDiscount: 0,
-        totalTax: totalGSTAmount,
-        grandTotal,
-        roundOff: 0,
-      },
-      amountPaid,
-      balanceDue: balanceAmount,
-      amountType: paymentMode,
-    };
+    const updated = [...rows];
+    updated[index].product = product;
+    updated[index].search = product.partName + " " + product.partNo;
+    updated[index].tariff = product.tariff || "";
+    updated[index].quantity = 1;
+    updated[index].discount = 0;
 
-    createInvoice(invoiceData, {
-      onSuccess: () => {
-        toast.success("Invoice created successfully!");
-        setInvoiceType("");
-        setInvoiceStatus("draft");
-        setCustomer({ name: "", phone: "" });
-        setVehicle({
-          model: "",
-          registrationNumber: "",
-          vin: "",
-          kmReading: "",
-          nextServiceKm: "",
-          nextServiceDate: "",
-        });
-        setRemarks("");
-        setItems([]);
-        setAmountPaid(0);
-        setPaymentMode("cash");
-      },
-      onError: (err) =>
-        toast.error(err?.response?.data?.message || "Failed to create invoice"),
+    setRows(updated);
+    setSearch("");
+    setActiveRow(null);
+
+    toast.success("Product Added", {
+      description: `${product.partName} has been added to invoice.`,
     });
   };
 
+  // Update row field
+  const updateField = (index, field, value) => {
+    const updated = [...rows];
+    updated[index][field] = value;
+    setRows(updated);
+  };
+
+  // Delete row
+  const deleteRow = (index) => {
+    const updated = rows.filter((_, i) => i !== index);
+    setRows(
+      updated.length > 0
+        ? updated
+        : [{ search: "", product: null, quantity: 1, tariff: "", discount: 0 }]
+    );
+
+    toast.info("Item Removed", {
+      description: "Item has been removed from the invoice.",
+    });
+  };
+
+  // Add row
+  const addRow = () => {
+    setRows([
+      ...rows,
+      { search: "", product: null, quantity: 1, tariff: "", discount: 0 },
+    ]);
+    toast.success("New Row Added", {
+      description: "You can now add another product.",
+    });
+  };
+
+  // SUBTOTAL & GST TOTAL
+  const subTotal = rows.reduce((sum, r) => sum + rowTotalBeforeTax(r), 0);
+  const totalDiscount = rows.reduce(
+    (sum, r) => sum + Number(r.discount || 0),
+    0
+  );
+  const GSTTotal = rows.reduce((sum, r) => sum + rowGST(r), 0);
+
+  const grandTotal = subTotal + GSTTotal;
+  const roundedTotal = Math.round(grandTotal);
+  const roundOff = roundedTotal - grandTotal;
+
+  // Calculate balance due
+  const balanceDue = Math.max(0, roundedTotal - Number(amountPaid || 0));
+
+  const generateInvoicePayload = () => {
+    return {
+      invoiceNumber,
+      invoiceDate: new Date(),
+      invoiceType,
+
+      customer: {
+        name: customerDetails.name,
+        phone: customerDetails.phone,
+      },
+
+      vehicle:
+        invoiceType === "job-card"
+          ? {
+              nextServiceKm: vehicleDetails.nextServiceKm
+                ? Number(vehicleDetails.nextServiceKm)
+                : null,
+              nextServiceDate: vehicleDetails.nextServiceDate
+                ? new Date(vehicleDetails.nextServiceDate)
+                : null,
+            }
+          : {
+              nextServiceKm: null,
+              nextServiceDate: null,
+            },
+
+      items: rows
+        .filter((r) => r.product)
+        .map((r) => {
+          const cgstAmount = rowCGSTAmount(r);
+          const sgstAmount = rowSGSTAmount(r);
+          const igstAmount = rowIGSTAmount(r);
+          const taxAmount = rowGST(r);
+          const finalAmount = rowFinalAmount(r);
+
+          return {
+            partNo: r.product?.partNo || "",
+            partName: r.product?.partName || "",
+            largeGroup: r.product?.largeGroup || "",
+            tariff: r.tariff || r.product?.tariff || 0,
+            revisedMRP: r.product?.revisedMRP || 0,
+            hsnCode: r.product?.hsnCode || "",
+
+            CGSTCode: r.product?.CGSTCode || 0,
+            SGSTCode: r.product?.SGSTCode || 0,
+            IGSTCode: r.product?.IGSTCode || 0,
+
+            quantity: Number(r.quantity),
+            discount: Number(r.discount || 0),
+
+            cgstAmount: Number(cgstAmount.toFixed(2)),
+            sgstAmount: Number(sgstAmount.toFixed(2)),
+            igstAmount: Number(igstAmount.toFixed(2)),
+            taxAmount: Number(taxAmount.toFixed(2)),
+            finalAmount: Number(finalAmount.toFixed(2)),
+          };
+        }),
+
+      totals: {
+        subTotal: Number(subTotal.toFixed(2)),
+        totalDiscount: Number(totalDiscount.toFixed(2)),
+        totalTax: Number(GSTTotal.toFixed(2)),
+        grandTotal: Number(roundedTotal.toFixed(2)),
+        roundOff: Number(roundOff.toFixed(2)),
+      },
+
+      amountPaid: Number(amountPaid || 0),
+      balanceDue: Number(balanceDue.toFixed(2)),
+      amountType,
+    };
+  };
+
+  const handleSubmit = async () => {
+    if (!customerDetails.name || !customerDetails.phone) {
+      toast.error("Missing Customer Details", {
+        description: "Please enter customer name and phone number.",
+      });
+      return;
+    }
+
+    if (customerDetails.phone.length !== 10) {
+      toast.error("Invalid Phone Number", {
+        description: "Phone number must be exactly 10 digits.",
+      });
+      return;
+    }
+
+    if (!rows.some((r) => r.product)) {
+      toast.error("No Products Added", {
+        description: "Please add at least one product.",
+      });
+      return;
+    }
+
+    if (Number(amountPaid) > roundedTotal) {
+      toast.error("Invalid Amount Paid", {
+        description: "Amount paid cannot exceed the grand total.",
+      });
+      return;
+    }
+
+    const payload = generateInvoicePayload();
+
+    try {
+      await createInvoiceMutation.mutateAsync(payload);
+
+      toast.success("Invoice Created Successfully!", {
+        description: `Invoice ${invoiceNumber} has been created.`,
+      });
+
+      // Reset form
+      setCustomerDetails({ name: "", phone: "" });
+      setVehicleDetails({ nextServiceKm: "", nextServiceDate: "" });
+      setRows([
+        { search: "", product: null, quantity: 1, tariff: "", discount: 0 },
+      ]);
+      setAmountPaid(0);
+      setAmountType("cash");
+      setInvoiceType("sales");
+    } catch (error) {
+      toast.error("Failed to Create Invoice", {
+        description: error.response?.data?.message || "Something went wrong.",
+      });
+    }
+  };
+
+  const showVehicleDetails = invoiceType === "job-card";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* HEADER */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500 rounded-lg">
-                <FileText className="text-white" size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800">
-                  Invoice Generator
-                </h1>
-                <p className="text-sm text-slate-500">
-                  Create and manage invoices
-                </p>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Invoice Header */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
+              <FileText className="w-7 h-7 text-white" />
             </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Invoice Generator
+            </h1>
+          </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              {/* Invoice Type */}
-              <Select value={invoiceType} onValueChange={setInvoiceType}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-white">
-                  <SelectValue placeholder="Invoice Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Invoice Types</SelectLabel>
-                    {invoiceTypes.map((invType) => (
-                      <SelectItem key={invType} value={invType}>
-                        {invType
-                          .split("-")
-                          .map(
-                            (w) => w.charAt(0).toUpperCase() + w.slice(1)
-                          )
-                          .join(" ")}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-
-              {/* Invoice Status (optional manual override) */}
-              <Select value={invoiceStatus} onValueChange={setInvoiceStatus}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-white">
-                  <SelectValue placeholder="Invoice Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Status</SelectLabel>
-                    {invoiceStatusOptions.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Invoice Number
+              </label>
+              <Input
+                type="text"
+                value={invoiceNumber || ""}
+                readOnly
+                className="bg-slate-50 font-mono text-lg border-slate-300"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Invoice Date
+              </label>
+              <Input
+                type="text"
+                value={formatedDate}
+                readOnly
+                className="bg-slate-50 font-mono text-lg border-slate-300"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Invoice Type
+              </label>
+              <select
+                value={invoiceType}
+                onChange={(e) => setInvoiceType(e.target.value)}
+                className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-md bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="sales">Sales</option>
+                <option value="advance">Advance</option>
+                <option value="job-card">Job Card</option>
+              </select>
             </div>
           </div>
         </div>
 
-        {/* CUSTOMER DETAILS */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <User className="text-blue-500" size={20} />
-            <h2 className="text-lg font-semibold text-slate-800">
-              Customer Details
-            </h2>
-          </div>
+        {/* Customer Details */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
+          <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
+            Customer Details
+          </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {invoiceType !== "quotation" && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Customer Name *
+              </label>
               <Input
-                placeholder="Invoice number"
                 type="text"
-                value={nextInvoiceNumber}
-                readOnly
-                className="bg-slate-50"
+                placeholder="Enter customer name"
+                value={customerDetails.name}
+                onChange={(e) =>
+                  setCustomerDetails({
+                    ...customerDetails,
+                    name: e.target.value,
+                  })
+                }
+                className="border-slate-300"
               />
-            )}
-
-            <Input
-              placeholder="Customer Name *"
-              type="text"
-              value={customer.name}
-              onChange={(e) =>
-                setCustomer({ ...customer, name: e.target.value })
-              }
-            />
-
-            <Input
-              placeholder="Phone Number"
-              type="text"
-              value={customer.phone}
-              onChange={(e) =>
-                setCustomer({ ...customer, phone: e.target.value })
-              }
-            />
-
-            <Input
-              placeholder="Date"
-              type="date"
-              value={today}
-              readOnly
-              className="bg-slate-50"
-            />
-          </div>
-        </div>
-
-        {/* VEHICLE (only for job-card) */}
-        {invoiceType !== "sales" && invoiceType !== "advance" && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <Car className="text-blue-500" size={20} />
-              <h2 className="text-lg font-semibold text-slate-800">
-                Vehicle Details
-              </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Phone Number * (10 digits)
+              </label>
               <Input
-                placeholder="Vehicle Model"
                 type="text"
-                value={vehicle.model}
-                onChange={(e) =>
-                  setVehicle({ ...vehicle, model: e.target.value })
-                }
-              />
-              <Input
-                placeholder="Registration Number"
-                type="text"
-                value={vehicle.registrationNumber}
-                onChange={(e) =>
-                  setVehicle({
-                    ...vehicle,
-                    registrationNumber: e.target.value,
-                  })
-                }
-              />
-              <Input
-                placeholder="VIN (Chassis Number)"
-                type="text"
-                value={vehicle.vin}
-                onChange={(e) =>
-                  setVehicle({ ...vehicle, vin: e.target.value })
-                }
-              />
-              <Input
-                placeholder="KM Reading"
-                type="number"
-                value={vehicle.kmReading}
-                onChange={(e) =>
-                  setVehicle({ ...vehicle, kmReading: e.target.value })
-                }
-              />
-              <Input
-                placeholder="Next Service KM"
-                type="number"
-                value={vehicle.nextServiceKm}
-                onChange={(e) =>
-                  setVehicle({ ...vehicle, nextServiceKm: e.target.value })
-                }
-              />
-              <Input
-                placeholder="Next Service Date"
-                type="date"
-                value={vehicle.nextServiceDate}
-                onChange={(e) =>
-                  setVehicle({
-                    ...vehicle,
-                    nextServiceDate: e.target.value,
-                  })
-                }
+                placeholder="Enter phone number"
+                value={customerDetails.phone}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setCustomerDetails({
+                    ...customerDetails,
+                    phone: value,
+                  });
+                }}
+                className="border-slate-300"
+                maxLength={10}
               />
             </div>
           </div>
-        )}
-
-        {/* PRODUCT SEARCH */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Package className="text-blue-500" size={20} />
-            <h2 className="text-lg font-semibold text-slate-800">
-              Add Products
-            </h2>
-          </div>
-
-          <div className="relative">
-            <Input
-              placeholder="Search products by name or part number..."
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pr-10"
-            />
-
-            {search && products.length > 0 && (
-              <div className="absolute w-full bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-60 overflow-auto mt-2">
-                {products.map((p) => (
-                  <div
-                    key={p._id}
-                    className="p-3 cursor-pointer hover:bg-slate-50 border-b last:border-b-0 transition-colors"
-                    onClick={() => {
-                      const newItem = convertProductToItem(p);
-                      setItems((prev) => {
-                        const exists = prev.some(
-                          (item) => item.partNo === newItem.partNo
-                        );
-                        if (exists) {
-                          toast.error("Item already added");
-                          return prev;
-                        }
-                        toast.success("Item added");
-                        return [...prev, newItem];
-                      });
-                      setSearch("");
-                    }}
-                  >
-                    <p className="font-medium text-slate-800">{p.partName}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm text-slate-600">
-                        {p.partNo}
-                      </span>
-                      <span className="text-sm font-semibold text-blue-600">
-                        ₹{p.revisedMRP}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* ITEMS TABLE */}
-        {items.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-            <h3 className="text-lg font-semibold text-slate-800 mb-4">
-              Invoice Items
+        {/* Vehicle Details - Only for Job Card */}
+        {showVehicleDetails && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-6 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full"></span>
+              Vehicle Details
             </h3>
 
-            <div className="overflow-x-auto -mx-4 md:mx-0">
-              <div className="inline-block min-w-full align-middle">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      {PRODUCT_TABLE_CONFIG.map((col) => (
-                        <TableHead
-                          key={col.key}
-                          className="font-semibold text-slate-700"
-                        >
-                          {col.label}
-                        </TableHead>
-                      ))}
-                      <TableHead className="font-semibold text-slate-700">
-                        Qty
-                      </TableHead>
-                      <TableHead className="font-semibold text-slate-700">
-                        Tax
-                      </TableHead>
-                      <TableHead className="font-semibold text-slate-700">
-                        Total
-                      </TableHead>
-                      <TableHead className="font-semibold text-slate-700">
-                        Actions
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {items.map((item, idx) => (
-                      <TableRow
-                        key={idx}
-                        className="hover:bg-slate-50 transition-colors"
-                      >
-                        {PRODUCT_TABLE_CONFIG.map((col) => (
-                          <TableCell
-                            key={col.key}
-                            className="text-slate-700"
-                          >
-                            {item[col.key] || "-"}
-                          </TableCell>
-                        ))}
-
-                        <TableCell>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={item.quantity}
-                            onChange={(e) =>
-                              updateItemQty(idx, Number(e.target.value))
-                            }
-                            className="w-20"
-                          />
-                        </TableCell>
-
-                        <TableCell className="text-slate-700">
-                          ₹{item.taxAmount.toLocaleString()}
-                        </TableCell>
-
-                        <TableCell className="font-semibold text-slate-800">
-                          ₹{item.finalAmount.toLocaleString()}
-                        </TableCell>
-
-                        <TableCell>
-                          <button
-                            onClick={() => deleteItem(idx)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-
-            {/* SUMMARY */}
-            <div className="flex justify-end mt-6">
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-6 w-full md:w-[350px] space-y-3 border border-slate-200">
-                <div className="flex justify-between items-center text-slate-700">
-                  <span className="font-medium">Subtotal:</span>
-                  <span className="font-semibold">
-                    ₹{subtotal.toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-slate-700">
-                  <span className="font-medium">GST Amount:</span>
-                  <span className="font-semibold">
-                    ₹{totalGSTAmount.toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="border-t border-slate-300 pt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-slate-800">
-                      Grand Total:
-                    </span>
-                    <span className="text-xl font-bold text-blue-600">
-                      ₹{grandTotal.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* PAYMENT DETAILS */}
-        {items.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <Wallet className="text-blue-500" size={20} />
-              <h2 className="text-lg font-semibold text-slate-800">
-                Payment Details
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              {/* MODE */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Payment Mode
+                  Next Service KM
                 </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode("cash")}
-                    className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
-                      paymentMode === "cash"
-                        ? "bg-green-600 text-white shadow-md"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    Cash
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode("credit")}
-                    className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
-                      paymentMode === "credit"
-                        ? "bg-orange-600 text-white shadow-md"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    Credit
-                  </button>
-                </div>
+                <Input
+                  type="number"
+                  placeholder="Enter next service KM"
+                  value={vehicleDetails.nextServiceKm}
+                  onChange={(e) =>
+                    setVehicleDetails({
+                      ...vehicleDetails,
+                      nextServiceKm: e.target.value,
+                    })
+                  }
+                  className="border-slate-300"
+                />
               </div>
 
-              {/* AMOUNT PAID + BALANCE */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Amount Paid *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 font-semibold">
-                      ₹
-                    </span>
-                    <Input
-                      type="number"
-                      value={amountPaid || ""}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        if (Number.isNaN(value)) {
-                          setAmountPaid(0);
-                          return;
-                        }
-                        if (value < 0) return;
-                        setAmountPaid(Math.min(value, grandTotal));
-                      }}
-                      placeholder="0"
-                      className="text-lg pl-8 font-semibold"
-                      min="0"
-                      max={grandTotal}
-                      step="1"
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Grand Total: ₹{grandTotal.toLocaleString()}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Balance Amount
-                  </label>
-                  <div
-                    className={`flex items-center justify-between h-10 px-4 rounded-lg border-2 text-lg font-bold ${
-                      balanceAmount > 0
-                        ? "bg-red-50 border-red-300 text-red-700"
-                        : "bg-green-50 border-green-300 text-green-700"
-                    }`}
-                  >
-                    <span className="text-sm font-medium">
-                      {balanceAmount > 0 ? "Due:" : "Paid:"}
-                    </span>
-                    <span>₹{Math.abs(balanceAmount).toLocaleString()}</span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {balanceAmount > 0
-                      ? "Remaining balance to be paid"
-                      : "Fully paid"}
-                  </p>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Next Service Date
+                </label>
+                <Input
+                  type="date"
+                  value={vehicleDetails.nextServiceDate}
+                  onChange={(e) =>
+                    setVehicleDetails({
+                      ...vehicleDetails,
+                      nextServiceDate: e.target.value,
+                    })
+                  }
+                  className="border-slate-300"
+                />
               </div>
             </div>
           </div>
         )}
 
-        {/* REMARKS */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">
-            Additional Notes
+        {/* Items Table */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
+          <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
+            Invoice Items
           </h3>
-          <Input
-            placeholder="Add any remarks or special instructions..."
-            type="text"
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-          />
+
+          <div className="overflow-x-auto">
+            <Table>
+              <caption className="text-slate-600 text-sm py-2">
+                Product List
+              </caption>
+
+              <TableHeader>
+                <TableRow className="bg-gradient-to-r from-blue-500 to-indigo-600">
+                  <TableHead className="text-white font-bold">Item</TableHead>
+                  <TableHead className="text-white font-bold">HSN</TableHead>
+                  <TableHead className="text-white font-bold">Qty</TableHead>
+                  <TableHead className="text-white font-bold">Price</TableHead>
+                  <TableHead className="text-white font-bold">
+                    Discount
+                  </TableHead>
+                  <TableHead className="text-white font-bold">CGST %</TableHead>
+                  <TableHead className="text-white font-bold">SGST %</TableHead>
+                  <TableHead className="text-white font-bold">Total</TableHead>
+                  <TableHead className="text-white font-bold text-center">
+                    Action
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {rows.map((item, index) => (
+                  <TableRow
+                    key={index}
+                    className="hover:bg-blue-50 transition-colors"
+                  >
+                    {/* SEARCH FIELD */}
+                    <TableCell className="relative">
+                      <Input
+                        type="text"
+                        placeholder="Search…"
+                        value={item.search}
+                        onChange={(e) =>
+                          handleSearchChange(index, e.target.value)
+                        }
+                        onPaste={(e) => {
+                          e.preventDefault();
+                          const pasteText = e.clipboardData
+                            .getData("text")
+                            .trim();
+                          handleSearchChange(index, pasteText);
+                        }}
+                        className="min-w-[200px]"
+                      />
+
+                      {activeRow === index &&
+                        search.length > 0 &&
+                        products.length > 0 && (
+                          <div className="absolute z-50 bg-white border border-slate-300 rounded-lg shadow-2xl w-full max-h-60 overflow-auto mt-1 left-0">
+                            {products.map((p) => (
+                              <div
+                                key={p._id}
+                                className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                                onClick={() => handleSelectProduct(index, p)}
+                              >
+                                <div className="font-semibold text-slate-800 text-sm">
+                                  {p.partName}
+                                </div>
+                                <div className="text-xs text-slate-600">
+                                  {p.partNo}
+                                </div>
+                                <div className="text-sm text-blue-600 font-medium">
+                                  ₹{p.revisedMRP?.toLocaleString("en-IN")}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                    </TableCell>
+
+                    {/* HSN */}
+                    <TableCell>
+                      <Input
+                        value={item.tariff}
+                        onChange={(e) =>
+                          updateField(index, "tariff", e.target.value)
+                        }
+                        className="min-w-[90px]"
+                      />
+                    </TableCell>
+
+                    {/* QTY */}
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={(e) =>
+                          updateField(
+                            index,
+                            "quantity",
+                            Math.max(1, Number(e.target.value))
+                          )
+                        }
+                        className="min-w-[70px]"
+                      />
+                    </TableCell>
+
+                    {/* PRICE */}
+                    <TableCell className="font-semibold text-slate-800 min-w-[90px]">
+                      {item.product
+                        ? `₹${item.product.revisedMRP?.toLocaleString("en-IN")}`
+                        : "-"}
+                    </TableCell>
+
+                    {/* DISCOUNT */}
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={item.discount || ""}
+                        min={0}
+                        onChange={(e) => {
+                          const v =
+                            e.target.value === "" ? 0 : Number(e.target.value);
+                          updateField(index, "discount", Math.max(0, v));
+                        }}
+                        className="min-w-[90px]"
+                      />
+                    </TableCell>
+
+                    {/* CGST % */}
+                    <TableCell className="font-semibold text-blue-600">
+                      {item.product ? `${item.product.CGSTCode}%` : "-"}
+                    </TableCell>
+
+                    {/* SGST % */}
+                    <TableCell className="font-semibold text-blue-600">
+                      {item.product ? `${item.product.SGSTCode}%` : "-"}
+                    </TableCell>
+
+                    {/* TOTAL */}
+                    <TableCell className="font-bold text-green-600 min-w-[100px]">
+                      ₹
+                      {rowFinalAmount(item).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </TableCell>
+
+                    {/* DELETE */}
+                    <TableCell className="text-center">
+                      <button
+                        onClick={() => deleteRow(index)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Add Row */}
+          <button
+            onClick={addRow}
+            className="mt-4 flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+          >
+            <Plus className="w-5 h-5" />
+            Add Item
+          </button>
         </div>
 
-        {/* SAVE BUTTON */}
-        <div className="flex justify-end pb-6">
+        {/* Payment Details */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
+          <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full"></span>
+            Payment Details
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Payment Type
+              </label>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setAmountType("cash")}
+                  className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all ${
+                    amountType === "cash"
+                      ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Cash
+                </button>
+                <button
+                  onClick={() => setAmountType("credit")}
+                  className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all ${
+                    amountType === "credit"
+                      ? "bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Credit
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Amount Paid (Max: ₹{roundedTotal.toLocaleString("en-IN")})
+              </label>
+              <Input
+                type="number"
+                min={0}
+                max={roundedTotal}
+                placeholder="Enter amount paid"
+                value={amountPaid || ""}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (value > roundedTotal) {
+                    toast.error("Amount Exceeds Total", {
+                      description: "Amount paid cannot exceed grand total.",
+                    });
+                    setAmountPaid(roundedTotal);
+                  } else {
+                    setAmountPaid(Math.max(0, value));
+                  }
+                }}
+                className="border-slate-300 text-lg font-semibold"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-semibold text-slate-700">
+                Balance Due:
+              </span>
+              <span className="text-2xl font-bold text-blue-600">
+                ₹
+                {balanceDue.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Summary */}
+        <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-900 rounded-2xl shadow-xl p-6 mb-6 text-white border border-indigo-800">
+          <h3 className="text-xl font-bold mb-4">Invoice Summary</h3>
+
+          <div className="space-y-3">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+              <span className="text-slate-300 text-base">Subtotal:</span>
+              <span className="text-lg font-semibold">
+                ₹
+                {subTotal.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+
+            {totalDiscount > 0 && (
+              <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+                <span className="text-slate-300 text-base">
+                  Total Discount:
+                </span>
+                <span className="text-lg font-semibold text-green-400">
+                  -₹
+                  {totalDiscount.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+              <span className="text-slate-300 text-base">Total GST:</span>
+              <span className="text-lg font-semibold text-orange-400">
+                ₹
+                {GSTTotal.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center pb-3 border-b border-slate-700">
+              <span className="text-slate-300 text-base">Round Off:</span>
+              <span className="text-lg font-semibold">
+                ₹
+                {roundOff.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 bg-slate-950 bg-opacity-50 rounded-xl p-4 mt-3">
+              <span className="text-xl font-bold">Grand Total:</span>
+              <span className="text-3xl font-bold text-green-400">
+                ₹{roundedTotal.toLocaleString("en-IN")}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Submit */}
+        <div className="flex justify-end">
           <button
-            className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={handleSave}
-            disabled={isPending}
+            onClick={handleSubmit}
+            disabled={createInvoiceMutation.isPending}
+            className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            <Save size={20} />
-            {isPending ? "Saving..." : "Save Invoice"}
+            {createInvoiceMutation.isPending ? "Creating..." : "Submit Invoice"}
           </button>
         </div>
       </div>

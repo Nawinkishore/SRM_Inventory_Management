@@ -2,32 +2,60 @@ import Invoice from "../models/invoice.model.js";
 
 /**
  * Helper: recompute invoice items, totals, balance & status
- * GST% = IGSTCode > 0 ? IGSTCode : (CGSTCode + SGSTCode)
+ * GST RULE:
+ *  - If IGSTCode > 0 → apply IGST only
+ *  - Else → apply CGST + SGST
+ * Taxable = (quantity * revisedMRP) - discount
  */
 const recomputeInvoice = (items = [], amountPaid = 0, currentStatus) => {
-  let subTotal = 0;
-  let totalTax = 0;
+  let subTotal = 0;       // sum of taxable values (after discount)
+  let totalTax = 0;       // sum of all GST amounts
+  let totalDiscount = 0;  // sum of per-item discount
 
   const normalizedItems = items.map((item) => {
     const qty = Number(item.quantity) || 1;
     const price = Number(item.revisedMRP) || 0;
+    const discount = Number(item.discount) || 0;
 
-    const itemSubtotal = qty * price;
-    const gstPercent =
-      item.IGSTCode > 0
-        ? item.IGSTCode
-        : (Number(item.CGSTCode) || 0) + (Number(item.SGSTCode) || 0);
+    const itemGross = qty * price;
+    const taxable = Math.max(0, itemGross - discount);
 
-    const taxAmount = Math.round((itemSubtotal * gstPercent) / 100);
-    const finalAmount = itemSubtotal + taxAmount;
+    const cgstRate = Number(item.CGSTCode) || 0;
+    const sgstRate = Number(item.SGSTCode) || 0;
+    const igstRate = Number(item.IGSTCode) || 0;
 
-    subTotal += itemSubtotal;
+    let cgstAmount = 0;
+    let sgstAmount = 0;
+    let igstAmount = 0;
+
+    if (igstRate > 0) {
+      // IGST only
+      igstAmount = Math.round((taxable * igstRate) / 100);
+    } else {
+      // CGST + SGST
+      if (cgstRate > 0) {
+        cgstAmount = Math.round((taxable * cgstRate) / 100);
+      }
+      if (sgstRate > 0) {
+        sgstAmount = Math.round((taxable * sgstRate) / 100);
+      }
+    }
+
+    const taxAmount = cgstAmount + sgstAmount + igstAmount;
+    const finalAmount = taxable + taxAmount;
+
+    subTotal += taxable;
     totalTax += taxAmount;
+    totalDiscount += discount;
 
     return {
       ...item,
       quantity: qty,
       revisedMRP: price,
+      discount,
+      cgstAmount,
+      sgstAmount,
+      igstAmount,
       taxAmount,
       finalAmount,
     };
@@ -48,7 +76,7 @@ const recomputeInvoice = (items = [], amountPaid = 0, currentStatus) => {
     items: normalizedItems,
     totals: {
       subTotal,
-      totalDiscount: 0,
+      totalDiscount,
       totalTax,
       grandTotal,
       roundOff: 0,
@@ -97,17 +125,12 @@ export const createInvoice = async (req, res) => {
   try {
     const invoiceData = req.body || {};
 
-    const {
-      items,
-      totals,
-      amountPaid,
-      balanceDue,
-      invoiceStatus,
-    } = recomputeInvoice(
-      invoiceData.items || [],
-      invoiceData.amountPaid,
-      invoiceData.invoiceStatus
-    );
+    const { items, totals, amountPaid, balanceDue, invoiceStatus } =
+      recomputeInvoice(
+        invoiceData.items || [],
+        invoiceData.amountPaid,
+        invoiceData.invoiceStatus
+      );
 
     invoiceData.items = items;
     invoiceData.totals = totals;
@@ -264,7 +287,6 @@ export const updateInvoice = async (req, res) => {
       totals,
       amountPaid: normalizedPaid,
       balanceDue,
-      // only override if not explicitly canceled
       invoiceStatus:
         patchData.invoiceStatus === "canceled"
           ? "canceled"

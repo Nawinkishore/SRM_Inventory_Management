@@ -1,6 +1,12 @@
 // InvoicePDF.jsx - Clean A5 Invoice with Proper Spacing
 
 import React from "react";
+import { Font } from "@react-pdf/renderer";
+import Roboto from "@/assets/fonts/Roboto-Regular.ttf";
+Font.register({
+  family: "Roboto",
+  src: Roboto,
+});
 import {
   Page,
   Text,
@@ -18,7 +24,7 @@ const styles = StyleSheet.create({
   page: {
     padding: 15,
     fontSize: 8,
-    fontFamily: "Helvetica",
+    fontFamily: "Roboto",
     lineHeight: 1.2,
   },
 
@@ -151,13 +157,14 @@ const styles = StyleSheet.create({
     fontSize: 7,
   },
 
-  colNum: { width: "5%" },
-  colName: { width: "28%" },
-  colCode: { width: "15%" },
-  colHSN: { width: "12%" },
-  colMRP: { width: "13%", textAlign: "right" },
-  colGST: { width: "10%", textAlign: "right" },
-  colAmount: { width: "17%", textAlign: "right", paddingRight: 2 },
+  // Column widths to match image:
+  colNum: { width: "6%" },
+  colName: { width: "32%" },
+  colHSN: { width: "15%" },
+  colQty: { width: "8%", textAlign: "center" },
+  colPrice: { width: "13%", textAlign: "right" },
+  colRate: { width: "13%", textAlign: "right" },
+  colAmount: { width: "13%", textAlign: "right", paddingRight: 2 },
 
   amountWordsBox: {
     border: "1pt solid #000",
@@ -239,9 +246,9 @@ const styles = StyleSheet.create({
 
 // ========== HELPER FUNCTIONS ==========
 
-// FIXED: No ₹ inside. Added symbol manually in JSX.
+// Currency formatter (without ₹, we add symbol in JSX)
 const formatCurrency = (amount) => {
-  if (!amount && amount !== 0) return "0.00";
+  if (amount === null || amount === undefined || isNaN(amount)) return "0.00";
 
   return Number(amount).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -252,16 +259,56 @@ const formatCurrency = (amount) => {
 const numberToWords = (num) => {
   if (!num || num === 0) return "Zero Rupees only";
 
-  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
-  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-  const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const ones = [
+    "",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine",
+  ];
+  const tens = [
+    "",
+    "",
+    "Twenty",
+    "Thirty",
+    "Forty",
+    "Fifty",
+    "Sixty",
+    "Seventy",
+    "Eighty",
+    "Ninety",
+  ];
+  const teens = [
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
+  ];
 
   const convert = (n) => {
     if (n === 0) return "";
     if (n < 10) return ones[n];
     if (n < 20) return teens[n - 10];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
-    return ones[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
+    if (n < 100)
+      return (
+        tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "")
+      );
+    return (
+      ones[Math.floor(n / 100)] +
+      " Hundred" +
+      (n % 100 ? " " + convert(n % 100) : "")
+    );
   };
 
   const crore = Math.floor(num / 10000000);
@@ -281,11 +328,66 @@ const numberToWords = (num) => {
 const formatDate = (dateString) => {
   if (!dateString) return "--";
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "--";
   return date.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
+};
+
+// Compute GST summary: split totalTax into CGST/SGST/IGST based on item codes
+const computeGSTSummary = (items = []) => {
+  let cgstAmount = 0;
+  let sgstAmount = 0;
+  let igstAmount = 0;
+
+  let cgstRate = null;
+  let sgstRate = null;
+  let igstRate = null;
+
+  items.forEach((item) => {
+    const qty = Number(item.quantity) || 0;
+    const price = Number(item.revisedMRP) || 0;
+    const subtotal = qty * price;
+
+    const CG = Number(item.CGSTCode) || 0;
+    const SG = Number(item.SGSTCode) || 0;
+    const IG = Number(item.IGSTCode) || 0;
+
+    const itemTax = Number(item.taxAmount) || 0;
+
+    if (IG > 0) {
+      // Inter-state: IGST only
+      igstAmount += itemTax || Math.round((subtotal * IG) / 100);
+      if (igstRate === null && IG > 0) igstRate = IG;
+    } else {
+      // Intra-state: CGST + SGST
+      const totalPercent = CG + SG;
+      const totalTax =
+        itemTax || (totalPercent > 0 ? Math.round((subtotal * totalPercent) / 100) : 0);
+
+      if (totalPercent > 0 && totalTax > 0) {
+        const cgAmt = (totalTax * CG) / totalPercent;
+        const sgAmt = (totalTax * SG) / totalPercent;
+
+        cgstAmount += cgAmt;
+        sgstAmount += sgAmt;
+      }
+
+      if (cgstRate === null && CG > 0) cgstRate = CG;
+      if (sgstRate === null && SG > 0) sgstRate = SG;
+    }
+  });
+
+  return {
+    cgstAmount,
+    sgstAmount,
+    igstAmount,
+    cgstRate,
+    sgstRate,
+    igstRate,
+  };
 };
 
 // ========== MAIN PDF COMPONENT ==========
@@ -307,10 +409,22 @@ export default function InvoicePDF({ invoice }) {
   const vehicle = invoice.vehicle || {};
   const isJobCard = invoice.invoiceType === "job-card";
 
+  const grandTotal = totals.grandTotal || 0;
+  const subTotal = totals.subTotal || 0;
+  const roundOff = totals.roundOff || 0;
+
+  const {
+    cgstAmount,
+    sgstAmount,
+    igstAmount,
+    cgstRate,
+    sgstRate,
+    igstRate,
+  } = computeGSTSummary(items);
+
   return (
     <Document>
       <Page size="A5" style={styles.page}>
-        
         {/* ===== HEADER ===== */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
@@ -323,7 +437,9 @@ export default function InvoicePDF({ invoice }) {
             <Text style={styles.companyText}>Jayamkondam Main Road</Text>
             <Text style={styles.companyText}>Sendurai, Ariyalur DT</Text>
             <Text style={styles.companyText}>Phone: 7825914040</Text>
-            <Text style={styles.companyText}>Email: srmmotorssendurai@gmail.com</Text>
+            <Text style={styles.companyText}>
+              Email: srmmotorssendurai@gmail.com
+            </Text>
             <Text style={styles.companyText}>GSTIN: 33BWLPM0667D1ZM</Text>
             <Text style={styles.companyText}>State: Tamil Nadu</Text>
           </View>
@@ -337,13 +453,20 @@ export default function InvoicePDF({ invoice }) {
           <View style={styles.columnLeft}>
             <Text style={styles.sectionLabel}>Bill To</Text>
             <Text style={styles.boldInfo}>{customer.name || "N/A"}</Text>
-            <Text style={styles.infoText}>Phone: {customer.phone || "N/A"}</Text>
+            <Text style={styles.infoText}>
+              Phone: {customer.phone || "N/A"}
+            </Text>
           </View>
 
           <View style={styles.columnRight}>
             <Text style={styles.sectionLabelRight}>Invoice Details</Text>
-            <Text style={styles.infoTextRight}>Invoice No: {invoice.invoiceNumber || "N/A"}</Text>
-            <Text style={styles.infoTextRight}>Date: {formatDate(invoice.invoiceDate || invoice.createdAt)}</Text>
+            <Text style={styles.infoTextRight}>
+              Invoice No: {invoice.invoiceNumber || "N/A"}
+            </Text>
+            <Text style={styles.infoTextRight}>
+              Date:{" "}
+              {formatDate(invoice.invoiceDate || invoice.createdAt)}
+            </Text>
           </View>
         </View>
 
@@ -351,47 +474,76 @@ export default function InvoicePDF({ invoice }) {
         {isJobCard && (
           <View style={styles.vehicleSection}>
             <Text style={styles.sectionLabel}>Vehicle Details</Text>
-            <Text style={styles.infoText}>Model: {vehicle.model || "--"}</Text>
-            <Text style={styles.infoText}>Reg. No: {vehicle.registrationNumber || "--"}</Text>
-            <Text style={styles.infoText}>KM Reading: {vehicle.kmReading || "--"}</Text>
+            <Text style={styles.infoText}>
+              Model: {vehicle.model || "--"}
+            </Text>
+            <Text style={styles.infoText}>
+              Reg. No: {vehicle.registrationNumber || "--"}
+            </Text>
+            <Text style={styles.infoText}>
+              KM Reading: {vehicle.kmReading || "--"}
+            </Text>
           </View>
         )}
 
-        {/* ===== ITEMS TABLE ===== */}
+        {/* ===== ITEMS TABLE (LIKE IMAGE) ===== */}
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={[styles.headerCell, styles.colNum]}>#</Text>
             <Text style={[styles.headerCell, styles.colName]}>Item Name</Text>
-            <Text style={[styles.headerCell, styles.colCode]}>Item Code</Text>
             <Text style={[styles.headerCell, styles.colHSN]}>HSN/SAC</Text>
-            <Text style={[styles.headerCell, styles.colMRP]}>MRP</Text>
-            <Text style={[styles.headerCell, styles.colGST]}>GST</Text>
+            <Text style={[styles.headerCell, styles.colQty]}>Qty</Text>
+            <Text style={[styles.headerCell, styles.colPrice]}>Price/ Unit</Text>
+            <Text style={[styles.headerCell, styles.colRate]}>Rate</Text>
             <Text style={[styles.headerCell, styles.colAmount]}>Amount</Text>
           </View>
 
           {items.length > 0 ? (
             items.map((item, index) => {
-              const gstTotal = (item.CGSTCode || 0) + (item.SGSTCode || 0);
+              const qty = Number(item.quantity) || 0;
+              const unitPrice = Number(item.revisedMRP) || 0;
+              // As per image: Amount = Qty × Unit Price (NO GST)
+              const amount = qty * unitPrice;
+
               return (
                 <View key={index} style={styles.tableRow}>
-                  <Text style={[styles.cell, styles.colNum]}>{index + 1}</Text>
-                  <Text style={[styles.cell, styles.colName]}>{item.partName || "N/A"}</Text>
-                  <Text style={[styles.cell, styles.colCode]}>{item.partNo || "N/A"}</Text>
-                  <Text style={[styles.cell, styles.colHSN]}>{item.tariff || "000000"}</Text>
-                  <Text style={[styles.cell, styles.colMRP]}>₹ {formatCurrency(item.revisedMRP || 0)}</Text>
-                  <Text style={[styles.cell, styles.colGST]}>{gstTotal}%</Text>
-                  <Text style={[styles.cell, styles.colAmount]}>₹ {formatCurrency(item.finalAmount || 0)}</Text>
+                  <Text style={[styles.cell, styles.colNum]}>
+                    {index + 1}
+                  </Text>
+                  <Text style={[styles.cell, styles.colName]}>
+                    {item.partName || "N/A"}
+                  </Text>
+                  <Text style={[styles.cell, styles.colHSN]}>
+                    {item.tariff || "000000"}
+                  </Text>
+                  <Text style={[styles.cell, styles.colQty]}>
+                    {qty}
+                  </Text>
+                  {/* PRICE PER UNIT */}
+                  <Text style={[styles.cell, styles.colPrice]}>
+                    ₹ {formatCurrency(unitPrice)}
+                  </Text>
+                  {/* RATE (same as unit price, as per image) */}
+                  <Text style={[styles.cell, styles.colRate]}>
+                    ₹ {formatCurrency(unitPrice)}
+                  </Text>
+                  {/* TOTAL AMOUNT WITHOUT GST */}
+                  <Text style={[styles.cell, styles.colAmount]}>
+                    ₹ {formatCurrency(amount)}
+                  </Text>
                 </View>
               );
             })
           ) : (
             <View style={styles.tableRow}>
               <Text style={[styles.cell, styles.colNum]}>1</Text>
-              <Text style={[styles.cell, styles.colName]}>No items available</Text>
-              <Text style={[styles.cell, styles.colCode]}>--</Text>
+              <Text style={[styles.cell, styles.colName]}>
+                No items available
+              </Text>
               <Text style={[styles.cell, styles.colHSN]}>--</Text>
-              <Text style={[styles.cell, styles.colMRP]}>₹ 0.00</Text>
-              <Text style={[styles.cell, styles.colGST]}>0%</Text>
+              <Text style={[styles.cell, styles.colQty]}>0</Text>
+              <Text style={[styles.cell, styles.colPrice]}>₹ 0.00</Text>
+              <Text style={[styles.cell, styles.colRate]}>₹ 0.00</Text>
               <Text style={[styles.cell, styles.colAmount]}>₹ 0.00</Text>
             </View>
           )}
@@ -401,36 +553,69 @@ export default function InvoicePDF({ invoice }) {
         <View style={styles.amountWordsBox}>
           <Text style={styles.amountWordsLabel}>Amount in Words:</Text>
           <Text style={styles.amountWords}>
-            {numberToWords(Math.round(totals.grandTotal || 0))}
+            {numberToWords(Math.round(grandTotal || 0))}
           </Text>
         </View>
 
-        {/* ===== TOTALS ===== */}
+        {/* ===== TOTALS (LIKE IMAGE: CGST/SGST SUMMARY) ===== */}
         <View style={styles.totalsContainer}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>₹ {formatCurrency(totals.subTotal || 0)}</Text>
+            <Text style={styles.totalValue}>
+              ₹ {formatCurrency(subTotal)}
+            </Text>
           </View>
 
-          {totals.totalTax > 0 && (
+          {/* Intra-state: show CGST + SGST */}
+          {sgstAmount > 0 && (
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Tax (GST)</Text>
-              <Text style={styles.totalValue}>₹ {formatCurrency(totals.totalTax)}</Text>
+              <Text style={styles.totalLabel}>
+                SGST{sgstRate ? ` @ ${sgstRate}%` : ""}
+              </Text>
+              <Text style={styles.totalValue}>
+                ₹ {formatCurrency(sgstAmount)}
+              </Text>
             </View>
           )}
 
-          {totals.roundOff !== 0 && totals.roundOff !== undefined && (
+          {cgstAmount > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>
+                CGST{cgstRate ? ` @ ${cgstRate}%` : ""}
+              </Text>
+              <Text style={styles.totalValue}>
+                ₹ {formatCurrency(cgstAmount)}
+              </Text>
+            </View>
+          )}
+
+          {/* Inter-state: show IGST only if present */}
+          {igstAmount > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>
+                IGST{igstRate ? ` @ ${igstRate}%` : ""}
+              </Text>
+              <Text style={styles.totalValue}>
+                ₹ {formatCurrency(igstAmount)}
+              </Text>
+            </View>
+          )}
+
+          {roundOff !== 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Round Off</Text>
               <Text style={styles.totalValue}>
-                {totals.roundOff > 0 ? "+" : "-"} ₹ {formatCurrency(Math.abs(totals.roundOff))}
+                {roundOff > 0 ? "+ " : "- "}₹{" "}
+                {formatCurrency(Math.abs(roundOff))}
               </Text>
             </View>
           )}
 
           <View style={styles.grandTotalRow}>
             <Text style={styles.grandTotalLabel}>Total</Text>
-            <Text style={styles.grandTotalValue}>₹ {formatCurrency(totals.grandTotal || 0)}</Text>
+            <Text style={styles.grandTotalValue}>
+              ₹ {formatCurrency(grandTotal)}
+            </Text>
           </View>
         </View>
 
@@ -439,8 +624,13 @@ export default function InvoicePDF({ invoice }) {
           <View style={styles.serviceInfo}>
             {isJobCard && (
               <>
-                <Text style={styles.infoText}>Next Service Date: {formatDate(vehicle.nextServiceDate)}</Text>
-                <Text style={styles.infoText}>Next Service KM: {vehicle.nextServiceKm || "--"}</Text>
+                <Text style={styles.infoText}>
+                  Next Service Date:{" "}
+                  {formatDate(vehicle.nextServiceDate)}
+                </Text>
+                <Text style={styles.infoText}>
+                  Next Service KM: {vehicle.nextServiceKm || "--"}
+                </Text>
               </>
             )}
           </View>
@@ -449,7 +639,6 @@ export default function InvoicePDF({ invoice }) {
             <Image src={QrCode} style={styles.qrCode} />
           </View>
         </View>
-
       </Page>
     </Document>
   );

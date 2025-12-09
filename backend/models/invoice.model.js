@@ -6,9 +6,9 @@ const InvoiceItemSchema = new mongoose.Schema(
     partNo: { type: String, trim: true },
     partName: { type: String, required: true, trim: true },
     largeGroup: { type: String, trim: true },
-    tariff: { type: Number }, // HSN / tariff code
+    tariff: { type: Number },
     revisedMRP: { type: Number, required: true, min: 0 },
-
+    hsnCode: { type: String, trim: true },
     CGSTCode: { type: Number, default: 0, min: 0 },
     SGSTCode: { type: Number, default: 0, min: 0 },
     IGSTCode: { type: Number, default: 0, min: 0 },
@@ -63,10 +63,6 @@ const invoiceSchema = new mongoose.Schema(
     },
 
     vehicle: {
-      model: { type: String, trim: true },
-      registrationNumber: { type: String, trim: true },
-      vin: { type: String, trim: true },
-      kmReading: { type: Number },
       nextServiceKm: { type: Number },
       nextServiceDate: { type: Date },
     },
@@ -75,11 +71,6 @@ const invoiceSchema = new mongoose.Schema(
       type: String,
       enum: ["draft", "completed", "canceled"],
       default: "draft",
-    },
-
-    remarks: {
-      type: String,
-      trim: true,
     },
 
     items: {
