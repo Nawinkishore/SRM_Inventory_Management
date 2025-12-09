@@ -22,7 +22,6 @@ const styles = StyleSheet.create({
     lineHeight: 1.2,
   },
 
-  // Header Section
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -53,11 +52,9 @@ const styles = StyleSheet.create({
 
   companyText: {
     fontSize: 7,
-    lineHeight: 1.3,
     color: "#333",
   },
 
-  // Invoice Title
   invoiceTitle: {
     fontSize: 10,
     fontWeight: "bold",
@@ -66,7 +63,6 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
 
-  // Two Column Layout
   twoColumns: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -87,44 +83,37 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: "bold",
     marginBottom: 3,
-    color: "#000",
   },
 
   sectionLabelRight: {
     fontSize: 8,
     fontWeight: "bold",
     marginBottom: 3,
-    color: "#000",
     textAlign: "right",
   },
 
   infoText: {
     fontSize: 7,
-    lineHeight: 1.4,
     color: "#333",
   },
 
   infoTextRight: {
     fontSize: 7,
-    lineHeight: 1.4,
-    color: "#333",
     textAlign: "right",
+    color: "#333",
   },
 
   boldInfo: {
     fontSize: 7,
     fontWeight: "bold",
-    lineHeight: 1.4,
   },
 
   boldInfoRight: {
     fontSize: 7,
     fontWeight: "bold",
-    lineHeight: 1.4,
     textAlign: "right",
   },
 
-  // Vehicle Details (for job-card)
   vehicleSection: {
     marginBottom: 8,
     padding: 5,
@@ -132,7 +121,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 
-  // Table Styles
   table: {
     marginTop: 5,
     marginBottom: 8,
@@ -163,7 +151,6 @@ const styles = StyleSheet.create({
     fontSize: 7,
   },
 
-  // Column widths
   colNum: { width: "5%" },
   colName: { width: "28%" },
   colCode: { width: "15%" },
@@ -172,7 +159,6 @@ const styles = StyleSheet.create({
   colGST: { width: "10%", textAlign: "right" },
   colAmount: { width: "17%", textAlign: "right", paddingRight: 2 },
 
-  // Amount in Words
   amountWordsBox: {
     border: "1pt solid #000",
     padding: 4,
@@ -181,7 +167,6 @@ const styles = StyleSheet.create({
 
   amountWordsLabel: {
     fontSize: 7,
-    marginBottom: 1,
   },
 
   amountWords: {
@@ -189,7 +174,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  // Totals Section
   totalsContainer: {
     width: "50%",
     alignSelf: "flex-end",
@@ -230,7 +214,6 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
 
-  // Footer Section
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -241,17 +224,6 @@ const styles = StyleSheet.create({
 
   serviceInfo: {
     width: "60%",
-  },
-
-  serviceLabel: {
-    fontSize: 7,
-    fontWeight: "bold",
-    marginBottom: 1,
-  },
-
-  serviceValue: {
-    fontSize: 7,
-    marginBottom: 4,
   },
 
   qrContainer: {
@@ -266,6 +238,16 @@ const styles = StyleSheet.create({
 });
 
 // ========== HELPER FUNCTIONS ==========
+
+// FIXED: No ₹ inside. Added symbol manually in JSX.
+const formatCurrency = (amount) => {
+  if (!amount && amount !== 0) return "0.00";
+
+  return Number(amount).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
 
 const numberToWords = (num) => {
   if (!num || num === 0) return "Zero Rupees only";
@@ -296,11 +278,6 @@ const numberToWords = (num) => {
   return words.trim() + " Rupees only";
 };
 
-const formatCurrency = (amount) => {
-  if (!amount && amount !== 0) return "₹ 0.00";
-  return `₹ ${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
-
 const formatDate = (dateString) => {
   if (!dateString) return "--";
   const date = new Date(dateString);
@@ -324,7 +301,6 @@ export default function InvoicePDF({ invoice }) {
     );
   }
 
-  // Extract invoice data
   const items = invoice.items || [];
   const totals = invoice.totals || {};
   const customer = invoice.customer || {};
@@ -334,7 +310,8 @@ export default function InvoicePDF({ invoice }) {
   return (
     <Document>
       <Page size="A5" style={styles.page}>
-        {/* ========== HEADER ========== */}
+        
+        {/* ===== HEADER ===== */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image src={Logo} style={styles.logo} />
@@ -352,19 +329,17 @@ export default function InvoicePDF({ invoice }) {
           </View>
         </View>
 
-        {/* ========== INVOICE TITLE ========== */}
+        {/* ===== TITLE ===== */}
         <Text style={styles.invoiceTitle}>Tax Invoice</Text>
 
-        {/* ========== BILL TO & INVOICE DETAILS ========== */}
+        {/* ===== BILL TO + INVOICE DETAILS ===== */}
         <View style={styles.twoColumns}>
-          {/* Bill To - Left Aligned */}
           <View style={styles.columnLeft}>
             <Text style={styles.sectionLabel}>Bill To</Text>
             <Text style={styles.boldInfo}>{customer.name || "N/A"}</Text>
             <Text style={styles.infoText}>Phone: {customer.phone || "N/A"}</Text>
           </View>
 
-          {/* Invoice Details - Right Aligned */}
           <View style={styles.columnRight}>
             <Text style={styles.sectionLabelRight}>Invoice Details</Text>
             <Text style={styles.infoTextRight}>Invoice No: {invoice.invoiceNumber || "N/A"}</Text>
@@ -372,7 +347,7 @@ export default function InvoicePDF({ invoice }) {
           </View>
         </View>
 
-        {/* ========== VEHICLE DETAILS (Only for Job Card) ========== */}
+        {/* ===== VEHICLE SECTION (JOB CARD) ===== */}
         {isJobCard && (
           <View style={styles.vehicleSection}>
             <Text style={styles.sectionLabel}>Vehicle Details</Text>
@@ -382,9 +357,8 @@ export default function InvoicePDF({ invoice }) {
           </View>
         )}
 
-        {/* ========== ITEMS TABLE ========== */}
+        {/* ===== ITEMS TABLE ===== */}
         <View style={styles.table}>
-          {/* Table Header */}
           <View style={styles.tableHeader}>
             <Text style={[styles.headerCell, styles.colNum]}>#</Text>
             <Text style={[styles.headerCell, styles.colName]}>Item Name</Text>
@@ -395,7 +369,6 @@ export default function InvoicePDF({ invoice }) {
             <Text style={[styles.headerCell, styles.colAmount]}>Amount</Text>
           </View>
 
-          {/* Table Rows */}
           {items.length > 0 ? (
             items.map((item, index) => {
               const gstTotal = (item.CGSTCode || 0) + (item.SGSTCode || 0);
@@ -405,9 +378,9 @@ export default function InvoicePDF({ invoice }) {
                   <Text style={[styles.cell, styles.colName]}>{item.partName || "N/A"}</Text>
                   <Text style={[styles.cell, styles.colCode]}>{item.partNo || "N/A"}</Text>
                   <Text style={[styles.cell, styles.colHSN]}>{item.tariff || "000000"}</Text>
-                  <Text style={[styles.cell, styles.colMRP]}>{formatCurrency(item.revisedMRP || 0)}</Text>
+                  <Text style={[styles.cell, styles.colMRP]}>₹ {formatCurrency(item.revisedMRP || 0)}</Text>
                   <Text style={[styles.cell, styles.colGST]}>{gstTotal}%</Text>
-                  <Text style={[styles.cell, styles.colAmount]}>{formatCurrency(item.finalAmount || 0)}</Text>
+                  <Text style={[styles.cell, styles.colAmount]}>₹ {formatCurrency(item.finalAmount || 0)}</Text>
                 </View>
               );
             })
@@ -424,7 +397,7 @@ export default function InvoicePDF({ invoice }) {
           )}
         </View>
 
-        {/* ========== AMOUNT IN WORDS ========== */}
+        {/* ===== AMOUNT IN WORDS ===== */}
         <View style={styles.amountWordsBox}>
           <Text style={styles.amountWordsLabel}>Amount in Words:</Text>
           <Text style={styles.amountWords}>
@@ -432,17 +405,17 @@ export default function InvoicePDF({ invoice }) {
           </Text>
         </View>
 
-        {/* ========== TOTALS ========== */}
+        {/* ===== TOTALS ===== */}
         <View style={styles.totalsContainer}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>{formatCurrency(totals.subTotal || 0)}</Text>
+            <Text style={styles.totalValue}>₹ {formatCurrency(totals.subTotal || 0)}</Text>
           </View>
 
           {totals.totalTax > 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Tax (GST)</Text>
-              <Text style={styles.totalValue}>{formatCurrency(totals.totalTax)}</Text>
+              <Text style={styles.totalValue}>₹ {formatCurrency(totals.totalTax)}</Text>
             </View>
           )}
 
@@ -450,31 +423,24 @@ export default function InvoicePDF({ invoice }) {
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Round Off</Text>
               <Text style={styles.totalValue}>
-                {totals.roundOff > 0 ? "+" : ""}{formatCurrency(Math.abs(totals.roundOff))}
+                {totals.roundOff > 0 ? "+" : "-"} ₹ {formatCurrency(Math.abs(totals.roundOff))}
               </Text>
             </View>
           )}
 
           <View style={styles.grandTotalRow}>
             <Text style={styles.grandTotalLabel}>Total</Text>
-            <Text style={styles.grandTotalValue}>{formatCurrency(totals.grandTotal || 0)}</Text>
+            <Text style={styles.grandTotalValue}>₹ {formatCurrency(totals.grandTotal || 0)}</Text>
           </View>
         </View>
 
-        {/* ========== FOOTER ========== */}
+        {/* ===== FOOTER ===== */}
         <View style={styles.footer}>
           <View style={styles.serviceInfo}>
             {isJobCard && (
               <>
-                <Text style={styles.serviceLabel}>Next Service Date:</Text>
-                <Text style={styles.serviceValue}>
-                  {formatDate(vehicle.nextServiceDate) || "--"}
-                </Text>
-
-                <Text style={styles.serviceLabel}>Next Service KM:</Text>
-                <Text style={styles.serviceValue}>
-                  {vehicle.nextServiceKm || "--"}
-                </Text>
+                <Text style={styles.infoText}>Next Service Date: {formatDate(vehicle.nextServiceDate)}</Text>
+                <Text style={styles.infoText}>Next Service KM: {vehicle.nextServiceKm || "--"}</Text>
               </>
             )}
           </View>
@@ -483,6 +449,7 @@ export default function InvoicePDF({ invoice }) {
             <Image src={QrCode} style={styles.qrCode} />
           </View>
         </View>
+
       </Page>
     </Document>
   );
