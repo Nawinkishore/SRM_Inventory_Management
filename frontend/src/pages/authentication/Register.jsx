@@ -1,42 +1,70 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useRegister } from '@/features/auth/hooks/useRegister';
-import { toast } from 'sonner';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useRegister } from "@/features/auth/hooks/useRegister";
+import { toast } from "sonner";
+
 const Register = () => {
-  const {mutate : register ,isLoading,isError,error} = useRegister();
   const navigate = useNavigate();
+  const { mutate: registerUser } = useRegister();
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: ''
+    name: "",
+    email: "",
+    password: "",
   });
-  const [message, setMessage] = useState({ type: '', text: '' });
-  const [loading, setLoading] = useState(false);
 
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
+
+  // -------------------------------
+  // HANDLE FORM INPUT
+  // -------------------------------
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleRegister = async (e) => {
+  // -------------------------------
+  // HANDLE REGISTER
+  // -------------------------------
+  const handleRegister = (e) => {
     e.preventDefault();
     setLoading(true);
+    setMessage({ type: "", text: "" });
 
-    register(formData, {
+    registerUser(formData, {
       onSuccess: (data) => {
-        toast.success(data.message || 'Registration successful! Please verify your email.');
-        setLoading(false);
+        toast.success(
+          data.message || "Registration successful! Please verify your email."
+        );
+
         localStorage.setItem("userEmail", data.user.email);
-        setTimeout(() => navigate('/verify-otp'), 1500);
+
+        setLoading(false);
+
+        setTimeout(() => navigate("/verify-otp"), 1200);
       },
+
       onError: (error) => {
-        setMessage({ type: 'error', text: error.message || 'Registration failed' });
+        const errMsg =
+          error?.response?.data?.message || "Registration failed!";
+        toast.error(errMsg);
+
+        setMessage({ type: "error", text: errMsg });
+        setLoading(false);
       },
     });
   };
@@ -53,12 +81,16 @@ const Register = () => {
         </div>
 
         <Card className="w-full shadow-xl">
-          <CardHeader className="space-y-1">
+          <CardHeader>
             <CardTitle className="text-2xl font-bold">Register</CardTitle>
-            <CardDescription>Enter your details to create an account</CardDescription>
+            <CardDescription>
+              Enter your details to create an account
+            </CardDescription>
           </CardHeader>
+
           <CardContent>
             <div className="space-y-4">
+              {/* Full Name */}
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
                 <div className="relative">
@@ -76,6 +108,7 @@ const Register = () => {
                 </div>
               </div>
 
+              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -93,6 +126,7 @@ const Register = () => {
                 </div>
               </div>
 
+              {/* Password */}
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -100,7 +134,7 @@ const Register = () => {
                   <Input
                     id="password"
                     name="password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     className="pl-10 pr-10"
                     value={formData.password}
@@ -112,30 +146,40 @@ const Register = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
 
+              {/* Error Message */}
               {message.text && (
-                <Alert className={message.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}>
+                <Alert className="bg-red-50 text-red-800 border-red-200">
                   <AlertDescription>{message.text}</AlertDescription>
                 </Alert>
               )}
 
-              <Button 
-                onClick={handleRegister} 
-                className="w-full" 
+              {/* Register Button */}
+              <Button
+                onClick={handleRegister}
+                className="w-full"
                 disabled={loading}
               >
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? "Creating Account..." : "Create Account"}
               </Button>
             </div>
           </CardContent>
+
           <CardFooter className="flex justify-center">
             <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link to="/login" className="text-blue-600 hover:underline font-medium">
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="text-blue-600 hover:underline font-medium"
+              >
                 Login
               </Link>
             </p>

@@ -1,40 +1,70 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useLogin } from '../../features/auth/hooks/useLogin';
-import { toast } from 'sonner';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useLogin } from "@/features/auth/hooks/useLogin";
+import { useDispatch } from "react-redux";
+import { setAuthData } from "@/store/auth/authSlice";
+import { toast } from "sonner";
+
 const Login = () => {
-  const {mutate : login ,isLoading,isError,error} = useLogin();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { mutate: login } = useLogin();
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
+
   const [loading, setLoading] = useState(false);
 
+  // -------------------------
+  // Handle Input Change
+  // -------------------------
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // -------------------------
+  // Handle Login
+  // -------------------------
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     login(formData, {
       onSuccess: (data) => {
-        setTimeout(() => navigate('/dashboard'), 1500);},
+        // Save to Redux
+        dispatch(
+          setAuthData({
+            user: data.user,
+            profile: data.profile,
+          })
+        );
+
+        toast.success(data.message || "Logged in successfully!");
+
+        setTimeout(() => navigate("/dashboard"), 800);
+      },
       onError: (error) => {
-        toast.error(error?.response?.data?.message || 'Login failed');
+        toast.error(error?.response?.data?.message || "Login failed");
       },
       onSettled: () => {
         setLoading(false);
-      }
+      },
     });
-    
   };
 
   return (
@@ -51,10 +81,14 @@ const Login = () => {
         <Card className="w-full shadow-xl">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">Login</CardTitle>
-            <CardDescription>Enter your credentials to access your account</CardDescription>
+            <CardDescription>
+              Enter your credentials to access your account
+            </CardDescription>
           </CardHeader>
+
           <CardContent>
             <div className="space-y-4">
+              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -72,6 +106,7 @@ const Login = () => {
                 </div>
               </div>
 
+              {/* Password */}
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -79,45 +114,57 @@ const Login = () => {
                   <Input
                     id="password"
                     name="password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     className="pl-10 pr-10"
                     value={formData.password}
                     onChange={handleInputChange}
                     required
                   />
+
+                  {/* Toggle Password Visibility */}
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
 
+              {/* Forgot Password Link */}
               <div className="flex justify-end">
-                <Link 
-                  to="/forgot-password" 
+                <Link
+                  to="/forgot-password"
                   className="text-sm text-blue-600 hover:underline"
                 >
                   Forgot password?
                 </Link>
               </div>
 
-              <Button 
-                onClick={handleLogin} 
+              {/* Login Button */}
+              <Button
+                onClick={handleLogin}
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? 'Signing In...' : 'Sign In'}
+                {loading ? "Signing In..." : "Sign In"}
               </Button>
             </div>
           </CardContent>
+
           <CardFooter className="flex justify-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-blue-600 hover:underline font-medium">
+              Don't have an account?{" "}
+              <Link
+                to="/register"
+                className="text-blue-600 hover:underline font-medium"
+              >
                 Register
               </Link>
             </p>
