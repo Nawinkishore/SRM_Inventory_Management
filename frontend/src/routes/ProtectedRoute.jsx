@@ -1,13 +1,12 @@
-import React from "react";
-import { useSelector } from "react-redux";
 import { Navigate } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useSelector((state) => state.auth);
+  const { isSignedIn, isLoaded } = useAuth();
 
-  if (loading) return <p>Loading...</p>;
+  if (!isLoaded) return <p>Checking authentication...</p>;
 
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  return isSignedIn ? children : <Navigate to="/login" />;
 };
 
 export default ProtectedRoute;

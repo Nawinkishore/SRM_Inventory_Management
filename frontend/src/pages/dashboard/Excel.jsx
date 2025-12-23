@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Download } from 'lucide-react';
+import React, { useState } from "react";
+import {
+  Upload,
+  FileSpreadsheet,
+  CheckCircle,
+  AlertCircle,
+  Download,
+} from "lucide-react";
 
 const Excel = () => {
   const [file, setFile] = useState(null);
@@ -7,14 +13,18 @@ const Excel = () => {
   const [importStatus, setImportStatus] = useState(null);
 
   const requiredColumns = [
-    { key: 'partNo', label: 'Part Number', example: '2S3137500000' },
-    { key: 'partName', label: 'Part Name', example: 'THROTTLE BODY ASSY' },
-    { key: 'largeGroup', label: 'Large Group', example: 'Yamaha Genuine Parts' },
-    { key: 'tariff', label: 'Tariff', example: '87141090' },
-    { key: 'revisedMRP', label: 'Revised MRP', example: '190182' },
-    { key: 'CGSTCode', label: 'CGST Code', example: '9' },
-    { key: 'SGSTCode', label: 'SGST Code', example: '9' },
-    { key: 'IGSTCode', label: 'IGST Code', example: '18' }
+    { key: "partNo", label: "Part Number", example: "2S3137500000" },
+    { key: "partName", label: "Part Name", example: "THROTTLE BODY ASSY" },
+    {
+      key: "largeGroup",
+      label: "Large Group",
+      example: "Yamaha Genuine Parts",
+    },
+    { key: "tariff", label: "Tariff", example: "87141090" },
+    { key: "revisedMRP", label: "Revised MRP", example: "190182" },
+    { key: "CGSTCode", label: "CGST Code", example: "9" },
+    { key: "SGSTCode", label: "SGST Code", example: "9" },
+    { key: "IGSTCode", label: "IGST Code", example: "18" },
   ];
 
   const handleFileChange = (e) => {
@@ -27,26 +37,29 @@ const Excel = () => {
 
   const handleImport = () => {
     if (!file) return;
-    
+
     setImporting(true);
     // Simulate import process
     setTimeout(() => {
       setImporting(false);
-      setImportStatus({ success: true, message: 'Successfully imported 1 record' });
+      setImportStatus({
+        success: true,
+        message: "Successfully imported 1 record",
+      });
     }, 2000);
   };
 
   const downloadTemplate = () => {
     // Create CSV template
-    const headers = requiredColumns.map(col => col.key).join(',');
-    const example = requiredColumns.map(col => col.example).join(',');
+    const headers = requiredColumns.map((col) => col.key).join(",");
+    const example = requiredColumns.map((col) => col.example).join(",");
     const csv = `${headers}\n${example}`;
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
+
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'parts_template.csv';
+    a.download = "parts_template.csv";
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -74,7 +87,7 @@ const Excel = () => {
               <label htmlFor="file-upload" className="cursor-pointer">
                 <Upload className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
                 <p className="text-lg font-semibold text-gray-700 mb-2">
-                  {file ? file.name : 'Click to upload or drag and drop'}
+                  {file ? file.name : "Click to upload or drag and drop"}
                 </p>
                 <p className="text-sm text-gray-500">
                   Excel files (.xlsx, .xls) or CSV files
@@ -89,7 +102,7 @@ const Excel = () => {
                   disabled={importing}
                   className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
-                  {importing ? 'Importing...' : 'Import Data'}
+                  {importing ? "Importing..." : "Import Data"}
                 </button>
                 <button
                   onClick={() => setFile(null)}
@@ -101,9 +114,13 @@ const Excel = () => {
             )}
 
             {importStatus && (
-              <div className={`mt-4 p-4 rounded-lg flex items-center gap-3 ${
-                importStatus.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-              }`}>
+              <div
+                className={`mt-4 p-4 rounded-lg flex items-center gap-3 ${
+                  importStatus.success
+                    ? "bg-green-50 text-green-800"
+                    : "bg-red-50 text-red-800"
+                }`}
+              >
                 {importStatus.success ? (
                   <CheckCircle className="w-5 h-5" />
                 ) : (
@@ -118,8 +135,12 @@ const Excel = () => {
           <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-800 mb-1">Need a template?</h3>
-                <p className="text-sm text-gray-600">Download a sample file with the correct format</p>
+                <h3 className="font-semibold text-gray-800 mb-1">
+                  Need a template?
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Download a sample file with the correct format
+                </p>
               </div>
               <button
                 onClick={downloadTemplate}
@@ -133,19 +154,29 @@ const Excel = () => {
 
           {/* Required Columns */}
           <div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Required Columns</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              Required Columns
+            </h2>
             <div className="bg-gray-50 rounded-lg p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {requiredColumns.map((col, index) => (
-                  <div key={index} className="bg-white p-4 rounded-lg border border-gray-200">
+                  <div
+                    key={index}
+                    className="bg-white p-4 rounded-lg border border-gray-200"
+                  >
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-gray-800">{col.label}</h3>
+                      <h3 className="font-semibold text-gray-800">
+                        {col.label}
+                      </h3>
                       <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
                         {col.key}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
-                      Example: <span className="font-mono text-indigo-600">{col.example}</span>
+                      Example:{" "}
+                      <span className="font-mono text-indigo-600">
+                        {col.example}
+                      </span>
                     </p>
                   </div>
                 ))}

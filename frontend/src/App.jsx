@@ -1,61 +1,48 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { useCheckAuth } from "./features/auth/hooks/useCheckAuth";
+import { useAuth } from "@clerk/clerk-react";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import DashBoard from "./pages/DashBoard";
 import Home from "./pages/dashboard/Home";
 import Profile from "./pages/dashboard/profile/Profile";
 import InvoiceGenerator from "./pages/dashboard/invoice/InvoiceGenerator";
-import Register from "./pages/authentication/Register";
 import Login from "./pages/authentication/Login";
-import ForgotPassword from "./pages/authentication/ForgotPassword";
-import VerifyOTP from "./pages/authentication/VerifyOTP";
-import ResetPassword from "./pages/authentication/ResetPassword";
-import Excel from "./pages/dashboard/Excel";
 import InvoiceList from "./pages/dashboard/invoice/InvoiceList";
 import Purchase from "./pages/dashboard/Purchase/Purchase";
 import AddStockPage from "./pages/stocksPage/AddStockPage";
 import PurchaseId from "./pages/dashboard/Purchase/PurchaseId";
-import { Toaster } from "sonner";
 import QuotationPage from "./pages/dashboard/invoice/QuotationPage";
 import InvoiceId from "./pages/dashboard/invoice/InvoiceId";
 import InvoicePreview from "./components/home/invoice/InvoicePreview";
+import { Toaster } from "sonner";
 
 function App() {
-  const { isAuthenticated, loading } = useSelector((state) => state.auth);
-  useCheckAuth();
+  const { isSignedIn, isLoaded } = useAuth();
 
-  if (loading) return <p>Loading...</p>;
+  if (!isLoaded) return <p>Loading...</p>;
 
   return (
     <>
       <Toaster position="top-right" richColors />
       <Routes>
+        {/* Root */}
         <Route
           path="/"
           element={
-            <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+            <Navigate to={isSignedIn ? "/dashboard" : "/login"} replace />
           }
         />
+
+        {/* Auth */}
         <Route
           path="/login"
-          element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />}
+          element={!isSignedIn ? <Login /> : <Navigate to="/dashboard" />}
         />
-        <Route
-          path="/register"
-          element={
-            !isAuthenticated ? <Register /> : <Navigate to="/dashboard" />
-          }
-        />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/verify-otp" element={<VerifyOTP />} />
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* Check invoice */}
-        <Route path ='/invoice/check' element = {<InvoicePreview/>} />
+        {/* Public */}
+        <Route path="/invoice/check" element={<InvoicePreview />} />
 
-        {/* Protected Dashboard Routes */}
+        {/* Protected */}
         <Route
           path="/dashboard"
           element={
@@ -67,20 +54,14 @@ function App() {
           <Route index element={<Home />} />
           <Route path="profile" element={<Profile />} />
 
-          {/* <Route path="excel" element={<Excel />} /> */}
-
-          {/* Invoice Routes */}
           <Route path="quotation" element={<QuotationPage />} />
           <Route path="invoice" element={<InvoiceGenerator />} />
           <Route path="invoices" element={<InvoiceList />} />
           <Route path="invoice/:id" element={<InvoiceId />} />
 
-          {/* Purchase Routes */}
           <Route path="purchase" element={<Purchase />} />
           <Route path="purchase/stocks/add" element={<AddStockPage />} />
           <Route path="purchase/:purchaseId" element={<PurchaseId />} />
-
-          {/* Stocks Page */}
         </Route>
       </Routes>
     </>

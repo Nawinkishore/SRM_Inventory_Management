@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { useSelector } from "react-redux";
+import { useUser } from "@clerk/clerk-react";
 
 import {
   TrendingUp,
@@ -15,8 +15,8 @@ import { useInvoices } from "@/features/invoice/useInvoice";
 import { usePurchaseList } from "@/features/purchase/usePurchase";
 
 const Home = () => {
-  const { user } = useSelector((state) => state.auth);
-  const userId = user?._id;
+  const { user } = useUser();
+  console.log("User Info:", user);
 
   // ===== Fetch ALL invoices =====
   const { data: invoiceData, isLoading: invoiceLoading } = useInvoices({
@@ -32,7 +32,6 @@ const Home = () => {
 
   // ===== Fetch ALL purchases =====
   const { data: purchaseData, isLoading: purchaseLoading } = usePurchaseList({
-    userId,
     page: 1,
     limit: 1000,
   });
@@ -42,9 +41,6 @@ const Home = () => {
   // Flatten purchase items
   const purchaseItems = purchases.flatMap((p) => p.items || []);
 
-  // ==============================
-  // 🔥 MERGE STOCK BY ITEM NUMBER
-  // ==============================
   const stats = useMemo(() => {
     const inv = invoices || [];
     const pur = purchases || [];
@@ -137,7 +133,7 @@ const Home = () => {
       {/* HEADER */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">
-          Welcome {user?.name}!
+          Welcome {user?.fullName}!
         </h1>
         <p className="text-gray-600 mt-2">
           Here's what's happening with your business today.
@@ -195,9 +191,7 @@ const Home = () => {
                   <p className="font-semibold text-gray-800">
                     {inv.invoiceNumber}
                   </p>
-                  <p className="text-sm text-gray-600">
-                    {inv.customer?.name}
-                  </p>
+                  <p className="text-sm text-gray-600">{inv.customer?.name}</p>
                   <p className="text-xs text-gray-500">
                     {new Date(inv.createdAt).toLocaleDateString("en-IN")}
                   </p>
