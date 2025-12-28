@@ -133,7 +133,8 @@ const Home = () => {
       {/* HEADER */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">
-          Welcome {user?.fullName}!
+          Welcome {user?.fullName}! 
+          
         </h1>
         <p className="text-gray-600 mt-2">
           Here's what's happening with your business today.

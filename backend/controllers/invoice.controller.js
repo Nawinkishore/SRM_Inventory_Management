@@ -1,92 +1,5 @@
 import Invoice from "../models/invoice.model.js";
 
-/**
- * Helper: recompute invoice items, totals, balance & status
- * GST RULE:
- *  - If IGSTCode > 0 → apply IGST only
- *  - Else → apply CGST + SGST
- * Taxable = (quantity * revisedMRP) - discount
- */
-const recomputeInvoice = (items = [], amountPaid = 0, currentStatus) => {
-  let subTotal = 0;       // sum of taxable values (after discount)
-  let totalTax = 0;       // sum of all GST amounts
-  let totalDiscount = 0;  // sum of per-item discount
-
-  const normalizedItems = items.map((item) => {
-    const qty = Number(item.quantity) || 1;
-    const price = Number(item.revisedMRP) || 0;
-    const discount = Number(item.discount) || 0;
-
-    const itemGross = qty * price;
-    const taxable = Math.max(0, itemGross - discount);
-
-    const cgstRate = Number(item.CGSTCode) || 0;
-    const sgstRate = Number(item.SGSTCode) || 0;
-    const igstRate = Number(item.IGSTCode) || 0;
-
-    let cgstAmount = 0;
-    let sgstAmount = 0;
-    let igstAmount = 0;
-
-    if (igstRate > 0) {
-      // IGST only
-      igstAmount = Math.round((taxable * igstRate) / 100);
-    } else {
-      // CGST + SGST
-      if (cgstRate > 0) {
-        cgstAmount = Math.round((taxable * cgstRate) / 100);
-      }
-      if (sgstRate > 0) {
-        sgstAmount = Math.round((taxable * sgstRate) / 100);
-      }
-    }
-
-    const taxAmount = cgstAmount + sgstAmount + igstAmount;
-    const finalAmount = taxable + taxAmount;
-
-    subTotal += taxable;
-    totalTax += taxAmount;
-    totalDiscount += discount;
-
-    return {
-      ...item,
-      quantity: qty,
-      revisedMRP: price,
-      discount,
-      cgstAmount,
-      sgstAmount,
-      igstAmount,
-      taxAmount,
-      finalAmount,
-    };
-  });
-
-  const grandTotal = subTotal + totalTax;
-  const paid = Math.round(Number(amountPaid) || 0);
-  const balanceDue = Math.max(0, grandTotal - paid);
-
-  let invoiceStatus;
-  if (currentStatus === "canceled") {
-    invoiceStatus = "canceled";
-  } else {
-    invoiceStatus = balanceDue <= 0 ? "completed" : "draft";
-  }
-
-  return {
-    items: normalizedItems,
-    totals: {
-      subTotal,
-      totalDiscount,
-      totalTax,
-      grandTotal,
-      roundOff: 0,
-    },
-    amountPaid: paid,
-    balanceDue,
-    invoiceStatus,
-  };
-};
-
 // ========================
 // Get next invoice number
 // ========================
@@ -123,21 +36,38 @@ export const getNextInvoiceNumber = async (req, res) => {
 // ========================
 export const createInvoice = async (req, res) => {
   try {
-    const invoiceData = req.body || {};
+    const invoiceData = req.body;
 
-    const { items, totals, amountPaid, balanceDue, invoiceStatus } =
-      recomputeInvoice(
-        invoiceData.items || [],
-        invoiceData.amountPaid,
-        invoiceData.invoiceStatus
-      );
+    // Validation
+    if (!invoiceData.invoiceNumber || !invoiceData.customer?.name || !invoiceData.customer?.phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: invoiceNumber, customer name, or phone",
+      });
+    }
 
-    invoiceData.items = items;
-    invoiceData.totals = totals;
-    invoiceData.amountPaid = amountPaid;
-    invoiceData.balanceDue = balanceDue;
-    invoiceData.invoiceStatus = invoiceStatus;
+    if (invoiceData.customer.phone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number must be exactly 10 digits",
+      });
+    }
 
+    if (!invoiceData.items || invoiceData.items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice must contain at least one item",
+      });
+    }
+
+    if (Number(invoiceData.amountPaid) > Number(invoiceData.totals.grandTotal)) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount paid cannot exceed grand total",
+      });
+    }
+
+    // Create invoice
     const invoice = await Invoice.create(invoiceData);
 
     res.status(201).json({
@@ -146,6 +76,16 @@ export const createInvoice = async (req, res) => {
       data: invoice,
     });
   } catch (error) {
+    console.error("Create Invoice Error:", error);
+
+    // Handle duplicate invoice number
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice number already exists",
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: "Failed to create invoice",
@@ -174,7 +114,7 @@ export const getInvoices = async (req, res) => {
       query.invoiceType = invoiceType;
     }
 
-    if (invoiceStatus) {
+    if (invoiceStatus && invoiceStatus !== "all") {
       query.invoiceStatus = invoiceStatus;
     }
 
@@ -182,6 +122,9 @@ export const getInvoices = async (req, res) => {
       query.$or = [
         { invoiceNumber: { $regex: q, $options: "i" } },
         { "customer.name": { $regex: q, $options: "i" } },
+        { "customer.phone": { $regex: q, $options: "i" } },
+        { "vehicle.registrationNumber": { $regex: q, $options: "i" } },
+        { "vehicle.frameNumber": { $regex: q, $options: "i" } },
       ];
     }
 
@@ -252,51 +195,23 @@ export const getInvoiceById = async (req, res) => {
 export const updateInvoice = async (req, res) => {
   try {
     const { id } = req.params;
-    const patchData = req.body || {};
+    const updateData = req.body;
 
-    const existingInvoice = await Invoice.findById(id);
-    if (!existingInvoice) {
+    // Prevent updating invoice number
+    delete updateData.invoiceNumber;
+
+    const invoice = await Invoice.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!invoice) {
       return res.status(404).json({
         success: false,
         message: "Invoice not found",
       });
     }
-
-    // Always recompute using either updated items or existing items
-    const items = patchData.items || existingInvoice.items;
-    const amountPaid =
-      patchData.amountPaid !== undefined
-        ? patchData.amountPaid
-        : existingInvoice.amountPaid;
-
-    const {
-      items: normalizedItems,
-      totals,
-      amountPaid: normalizedPaid,
-      balanceDue,
-      invoiceStatus,
-    } = recomputeInvoice(
-      items,
-      amountPaid,
-      patchData.invoiceStatus || existingInvoice.invoiceStatus
-    );
-
-    const updateData = {
-      ...patchData,
-      items: normalizedItems,
-      totals,
-      amountPaid: normalizedPaid,
-      balanceDue,
-      invoiceStatus:
-        patchData.invoiceStatus === "canceled"
-          ? "canceled"
-          : invoiceStatus,
-    };
-
-    const invoice = await Invoice.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
 
     res.status(200).json({
       success: true,

@@ -1,7 +1,8 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, FileText } from "lucide-react";
+import { Trash2, FileText, Search } from "lucide-react";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableHeader,
@@ -10,6 +11,16 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
+
+export function useDebounce(value, delay = 400) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debounced;
+}
 
 import {
   useNextInvoiceNumber,
@@ -38,105 +49,74 @@ const InvoiceGenerator = () => {
     phone: "",
   });
 
-  // Vehicle State (only for job-card)
+  // Vehicle State (only for job-card) - UPDATED WITH SERVICE DETAILS
   const [vehicleDetails, setVehicleDetails] = React.useState({
+    registrationNumber: "",
+    frameNumber: "",
+    model: "",
     nextServiceKm: "",
     nextServiceDate: "",
   });
 
   // Payment State
   const [amountType, setAmountType] = React.useState("cash");
-  const [amountPaid, setAmountPaid] = React.useState(0);
+  const [amountPaid, setAmountPaid] = React.useState("");
 
-  // Rows
-  const [rows, setRows] = React.useState([
-    { search: "", product: null, quantity: 1, tariff: "", discount: 0 },
-  ]);
+  // Separate search state
+  const [searchText, setSearchText] = React.useState("");
+  const debouncedSearch = useDebounce(searchText, 400);
 
-  const [activeRow, setActiveRow] = React.useState(null);
-  const [search, setSearch] = React.useState("");
+  // Items/rows that have been added
+  const [items, setItems] = React.useState([]);
 
-  // API search
-  const { data: products = [] } = useProductSearch(search);
+  // API search - only call when there's actually text to search
+  const shouldSearch = debouncedSearch && debouncedSearch.trim().length > 0;
+  const { data: productsResponse, isLoading: searchLoading } = useProductSearch(
+    shouldSearch ? debouncedSearch : null
+  );
+
+  // Extract products array from response
+  const products = productsResponse?.data || productsResponse || [];
+
+  // Helper: parse number from string (handles empty strings)
+  const parseNum = (val) => {
+    if (val === "" || val === null || val === undefined) return 0;
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+  };
 
   // Helper: taxable amount (price * qty - discount)
-  const getTaxableAmount = (row) => {
-    if (!row.product) return 0;
-    const price = Number(row.product.revisedMRP || 0);
-    const qty = Number(row.quantity || 0);
-    const discount = Number(row.discount || 0);
-    const taxable = price * qty - discount;
-    return taxable > 0 ? taxable : 0;
+  const getTaxableAmount = (item) => {
+    const price = parseNum(item.price);
+    const qty = parseNum(item.quantity);
+    const discount = parseNum(item.discount);
+    return Math.max(0, price * qty - discount);
   };
 
-  // Row-wise CGST / SGST / IGST amounts using rule:
-  // IF IGSTCode > 0 → apply IGST only
-  // ELSE → apply CGST + SGST
-  const rowCGSTAmount = (row) => {
-    if (!row.product) return 0;
-    const igstRate = Number(row.product.IGSTCode || 0);
-    if (igstRate > 0) return 0; // IGST case → no CGST
-    const rate = Number(row.product.CGSTCode || 0);
-    const taxable = getTaxableAmount(row);
-    return (taxable * rate) / 100;
+  const itemGSTAmount = (item) => {
+    const taxable = getTaxableAmount(item);
+    const gstRate = parseNum(item.gstRate);
+    return (taxable * gstRate) / 100;
   };
 
-  const rowSGSTAmount = (row) => {
-    if (!row.product) return 0;
-    const igstRate = Number(row.product.IGSTCode || 0);
-    if (igstRate > 0) return 0; // IGST case → no SGST
-    const rate = Number(row.product.SGSTCode || 0);
-    const taxable = getTaxableAmount(row);
-    return (taxable * rate) / 100;
+  const itemCGSTAmount = (item) => {
+    return itemGSTAmount(item) / 2;
   };
 
-  const rowIGSTAmount = (row) => {
-    if (!row.product) return 0;
-    const rate = Number(row.product.IGSTCode || 0);
-    if (rate <= 0) return 0;
-    const taxable = getTaxableAmount(row);
-    return (taxable * rate) / 100;
+  const itemSGSTAmount = (item) => {
+    return itemGSTAmount(item) / 2;
   };
 
-  const rowGST = (row) =>
-    rowCGSTAmount(row) + rowSGSTAmount(row) + rowIGSTAmount(row);
-
-  const rowTotalBeforeTax = (row) => getTaxableAmount(row);
-
-  const rowFinalAmount = (row) => rowTotalBeforeTax(row) + rowGST(row);
-
-  // Search handler
-  const handleSearchChange = (index, value) => {
-    const updated = [...rows];
-    updated[index].search = value;
-
-    // If search becomes empty → reset this row completely
-    if (!value.trim()) {
-      updated[index] = {
-        search: "",
-        product: null,
-        quantity: 1,
-        tariff: "",
-        discount: 0,
-      };
-      setRows(updated);
-      setSearch("");
-      setActiveRow(null);
-      return;
-    }
-
-    setRows(updated);
-    setActiveRow(index);
-    setSearch(value);
-  };
+  const itemFinalAmount = (item) => getTaxableAmount(item) + itemGSTAmount(item);
+  const itemTotalBeforeTax = (item) => getTaxableAmount(item);
 
   // Prevent duplicate
   const isDuplicateProduct = (productId) => {
-    return rows.some((r) => r.product?._id === productId);
+    return items.some((item) => item._id === productId);
   };
 
-  // Select product
-  const handleSelectProduct = (index, product) => {
+  // Add product to items list
+  const handleAddProduct = (product) => {
     if (isDuplicateProduct(product._id)) {
       toast.error("Product Already Added!", {
         description: "This product is already in the invoice list.",
@@ -144,68 +124,72 @@ const InvoiceGenerator = () => {
       return;
     }
 
-    const updated = [...rows];
-    updated[index].product = product;
-    updated[index].search = product.partName + " " + product.partNo;
-    updated[index].tariff = product.tariff || "";
-    updated[index].quantity = 1;
-    updated[index].discount = 0;
+    // Calculate combined GST rate
+    const cgst = parseNum(product.CGSTCode);
+    const sgst = parseNum(product.SGSTCode);
+    const combinedGST = cgst + sgst;
 
-    setRows(updated);
-    setSearch("");
-    setActiveRow(null);
+    const newItem = {
+      _id: product._id,
+      partName: product.partName || "",
+      partNo: product.partNo || "",
+      largeGroup: product.largeGroup || "",
+      hsnCode: product.hsnCode || "",
+      
+      // Editable fields - stored as strings
+      quantity: "1",
+      price: String(parseNum(product.revisedMRP)),
+      discount: "0",
+      tariff: product.tariff || "",
+      gstRate: String(combinedGST),
+
+      // Original values for reference
+      revisedMRP: product.revisedMRP || 0,
+      originalGSTRate: combinedGST,
+    };
+
+    setItems([...items, newItem]);
+    setSearchText("");
 
     toast.success("Product Added", {
       description: `${product.partName} has been added to invoice.`,
     });
   };
 
-  // Update row field
-  const updateField = (index, field, value) => {
-    const updated = [...rows];
+  // Update item field
+  const updateItemField = (index, field, value) => {
+    const updated = [...items];
     updated[index][field] = value;
-    setRows(updated);
+    setItems(updated);
   };
 
-  // Delete row
-  const deleteRow = (index) => {
-    const updated = rows.filter((_, i) => i !== index);
-    setRows(
-      updated.length > 0
-        ? updated
-        : [{ search: "", product: null, quantity: 1, tariff: "", discount: 0 }]
-    );
+  // Delete item
+  const deleteItem = (index) => {
+    const updated = items.filter((_, i) => i !== index);
+    setItems(updated);
 
     toast.info("Item Removed", {
       description: "Item has been removed from the invoice.",
     });
   };
 
-  // Add row
-  const addRow = () => {
-    setRows([
-      ...rows,
-      { search: "", product: null, quantity: 1, tariff: "", discount: 0 },
-    ]);
-    toast.success("New Row Added", {
-      description: "You can now add another product.",
-    });
-  };
-
   // SUBTOTAL & GST TOTAL
-  const subTotal = rows.reduce((sum, r) => sum + rowTotalBeforeTax(r), 0);
-  const totalDiscount = rows.reduce(
-    (sum, r) => sum + Number(r.discount || 0),
+  const subTotal = items.reduce(
+    (sum, item) => sum + itemTotalBeforeTax(item),
     0
   );
-  const GSTTotal = rows.reduce((sum, r) => sum + rowGST(r), 0);
+  const totalDiscount = items.reduce(
+    (sum, item) => sum + parseNum(item.discount),
+    0
+  );
+  const GSTTotal = items.reduce((sum, item) => sum + itemGSTAmount(item), 0);
 
   const grandTotal = subTotal + GSTTotal;
   const roundedTotal = Math.round(grandTotal);
   const roundOff = roundedTotal - grandTotal;
 
   // Calculate balance due
-  const balanceDue = Math.max(0, roundedTotal - Number(amountPaid || 0));
+  const balanceDue = Math.max(0, roundedTotal - parseNum(amountPaid));
 
   const generateInvoicePayload = () => {
     return {
@@ -221,49 +205,52 @@ const InvoiceGenerator = () => {
       vehicle:
         invoiceType === "job-card"
           ? {
-              nextServiceKm: vehicleDetails.nextServiceKm
-                ? Number(vehicleDetails.nextServiceKm)
-                : null,
-              nextServiceDate: vehicleDetails.nextServiceDate
-                ? new Date(vehicleDetails.nextServiceDate)
-                : null,
+              registrationNumber: vehicleDetails.registrationNumber || null,
+              frameNumber: vehicleDetails.frameNumber || null,
+              model: vehicleDetails.model || null,
+              nextServiceKm: vehicleDetails.nextServiceKm ? Number(vehicleDetails.nextServiceKm) : null,
+              nextServiceDate: vehicleDetails.nextServiceDate ? new Date(vehicleDetails.nextServiceDate) : null,
             }
           : {
+              registrationNumber: null,
+              frameNumber: null,
+              model: null,
               nextServiceKm: null,
               nextServiceDate: null,
             },
 
-      items: rows
-        .filter((r) => r.product)
-        .map((r) => {
-          const cgstAmount = rowCGSTAmount(r);
-          const sgstAmount = rowSGSTAmount(r);
-          const igstAmount = rowIGSTAmount(r);
-          const taxAmount = rowGST(r);
-          const finalAmount = rowFinalAmount(r);
+      items: items.map((item) => {
+        const gstRate = parseNum(item.gstRate);
+        const cgstRate = gstRate / 2;
+        const sgstRate = gstRate / 2;
+        
+        const cgstAmount = itemCGSTAmount(item);
+        const sgstAmount = itemSGSTAmount(item);
+        const taxAmount = itemGSTAmount(item);
+        const finalAmount = itemFinalAmount(item);
 
-          return {
-            partNo: r.product?.partNo || "",
-            partName: r.product?.partName || "",
-            largeGroup: r.product?.largeGroup || "",
-            tariff: r.tariff || r.product?.tariff || 0,
-            revisedMRP: r.product?.revisedMRP || 0,
-            hsnCode: r.product?.hsnCode || "",
+        return {
+          partNo: item.partNo || "",
+          partName: item.partName || "",
+          largeGroup: item.largeGroup || "",
+          tariff: item.tariff || "",
+          revisedMRP: parseNum(item.price),
+          hsnCode: item.hsnCode || "",
 
-            CGSTCode: r.product?.CGSTCode || 0,
-            SGSTCode: r.product?.SGSTCode || 0,
-            IGSTCode: r.product?.IGSTCode || 0,
+          CGSTCode: cgstRate,
+          SGSTCode: sgstRate,
+          IGSTCode: 0,
 
-            quantity: Number(r.quantity),
-            discount: Number(r.discount || 0),
+          quantity: parseNum(item.quantity),
+          discount: parseNum(item.discount),
 
-            cgstAmount: Number(cgstAmount.toFixed(2)),
-            sgstAmount: Number(sgstAmount.toFixed(2)),
-            igstAmount: Number(igstAmount.toFixed(2)),
-            taxAmount: Number(taxAmount.toFixed(2)),
-            finalAmount: Number(finalAmount.toFixed(2)),
-          };
-        }),
+          cgstAmount: Number(cgstAmount.toFixed(2)),
+          sgstAmount: Number(sgstAmount.toFixed(2)),
+          igstAmount: 0,
+          taxAmount: Number(taxAmount.toFixed(2)),
+          finalAmount: Number(finalAmount.toFixed(2)),
+        };
+      }),
 
       totals: {
         subTotal: Number(subTotal.toFixed(2)),
@@ -273,7 +260,7 @@ const InvoiceGenerator = () => {
         roundOff: Number(roundOff.toFixed(2)),
       },
 
-      amountPaid: Number(amountPaid || 0),
+      amountPaid: parseNum(amountPaid),
       balanceDue: Number(balanceDue.toFixed(2)),
       amountType,
     };
@@ -294,14 +281,14 @@ const InvoiceGenerator = () => {
       return;
     }
 
-    if (!rows.some((r) => r.product)) {
+    if (items.length === 0) {
       toast.error("No Products Added", {
         description: "Please add at least one product.",
       });
       return;
     }
 
-    if (Number(amountPaid) > roundedTotal) {
+    if (parseNum(amountPaid) > roundedTotal) {
       toast.error("Invalid Amount Paid", {
         description: "Amount paid cannot exceed the grand total.",
       });
@@ -319,13 +306,18 @@ const InvoiceGenerator = () => {
 
       // Reset form
       setCustomerDetails({ name: "", phone: "" });
-      setVehicleDetails({ nextServiceKm: "", nextServiceDate: "" });
-      setRows([
-        { search: "", product: null, quantity: 1, tariff: "", discount: 0 },
-      ]);
-      setAmountPaid(0);
+      setVehicleDetails({
+        registrationNumber: "",
+        frameNumber: "",
+        model: "",
+        nextServiceKm: "",
+        nextServiceDate: "",
+      });
+      setItems([]);
+      setAmountPaid("");
       setAmountType("cash");
       setInvoiceType("sales");
+      setSearchText("");
     } catch (error) {
       toast.error("Failed to Create Invoice", {
         description: error.response?.data?.message || "Something went wrong.",
@@ -437,7 +429,7 @@ const InvoiceGenerator = () => {
           </div>
         </div>
 
-        {/* Vehicle Details - Only for Job Card */}
+        {/* Vehicle Details - Only for Job Card - WITH SERVICE DETAILS */}
         {showVehicleDetails && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
             <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -445,69 +437,201 @@ const InvoiceGenerator = () => {
               Vehicle Details
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Next Service KM
+                  Registration Number
                 </label>
                 <Input
-                  type="number"
-                  placeholder="Enter next service KM"
-                  value={vehicleDetails.nextServiceKm}
+                  type="text"
+                  placeholder="e.g., TN01AB1234"
+                  value={vehicleDetails.registrationNumber}
                   onChange={(e) =>
                     setVehicleDetails({
                       ...vehicleDetails,
-                      nextServiceKm: e.target.value,
+                      registrationNumber: e.target.value.toUpperCase(),
                     })
                   }
-                  className="border-slate-300"
+                  className="border-slate-300 uppercase"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Next Service Date
+                  Frame Number
                 </label>
                 <Input
-                  type="date"
-                  value={vehicleDetails.nextServiceDate}
+                  type="text"
+                  placeholder="Enter frame number"
+                  value={vehicleDetails.frameNumber}
                   onChange={(e) =>
                     setVehicleDetails({
                       ...vehicleDetails,
-                      nextServiceDate: e.target.value,
+                      frameNumber: e.target.value.toUpperCase(),
+                    })
+                  }
+                  className="border-slate-300 uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Bike Model
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g., Hero Splendor"
+                  value={vehicleDetails.model}
+                  onChange={(e) =>
+                    setVehicleDetails({
+                      ...vehicleDetails,
+                      model: e.target.value,
                     })
                   }
                   className="border-slate-300"
                 />
               </div>
             </div>
+
+            {/* Next Service Details */}
+            <div className="pt-4 border-t border-slate-200">
+              <h4 className="text-lg font-semibold text-slate-700 mb-3">
+                Next Service Details
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Next Service KM
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter next service KM"
+                    value={vehicleDetails.nextServiceKm}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "");
+                      setVehicleDetails({
+                        ...vehicleDetails,
+                        nextServiceKm: value,
+                      });
+                    }}
+                    className="border-slate-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Next Service Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={vehicleDetails.nextServiceDate}
+                    onChange={(e) =>
+                      setVehicleDetails({
+                        ...vehicleDetails,
+                        nextServiceDate: e.target.value,
+                      })
+                    }
+                    className="border-slate-300"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Product Search - Separate Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
+          <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full"></span>
+            Search Products
+          </h3>
+
+          <div className="relative max-w-2xl">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Input
+                placeholder="Search product by name or part number..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="pl-10 text-base border-slate-300"
+              />
+              {searchLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                  Searching...
+                </div>
+              )}
+            </div>
+
+            {shouldSearch && !searchLoading && products.length > 0 && (
+              <div className="absolute z-50 bg-white border border-slate-300 rounded-lg shadow-2xl w-full max-h-80 overflow-auto mt-2">
+                {products.map((p) => (
+                  <div
+                    key={p._id}
+                    className="p-4 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition-colors"
+                    onClick={() => handleAddProduct(p)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-semibold text-slate-800">
+                          {p.partName}
+                        </div>
+                        <div className="text-sm text-slate-600 mt-1">
+                          Part No: {p.partNo}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">
+                          HSN: {p.hsnCode || "N/A"}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-blue-600">
+                          ₹{parseNum(p.revisedMRP).toLocaleString("en-IN")}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">
+                          GST: {parseNum(p.CGSTCode) + parseNum(p.SGSTCode)}%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {shouldSearch && !searchLoading && products.length === 0 && (
+              <div className="absolute z-50 bg-white border border-slate-300 rounded-lg shadow-lg w-full mt-2 p-4 text-center text-slate-500">
+                No products found for "{searchText}"
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Items Table */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
           <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
             <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
             Invoice Items
+            <span className="ml-auto text-sm font-normal text-slate-500">
+              {items.length} {items.length === 1 ? "item" : "items"}
+            </span>
           </h3>
 
           <div className="overflow-x-auto">
             <Table>
-              <caption className="text-slate-600 text-sm py-2">
-                Product List
-              </caption>
-
               <TableHeader>
                 <TableRow className="bg-gradient-to-r from-blue-500 to-indigo-600">
-                  <TableHead className="text-white font-bold">Item</TableHead>
+                  <TableHead className="text-white font-bold">S.No</TableHead>
+                  <TableHead className="text-white font-bold">
+                    Item Name
+                  </TableHead>
+                  <TableHead className="text-white font-bold">
+                    Part No
+                  </TableHead>
                   <TableHead className="text-white font-bold">HSN</TableHead>
                   <TableHead className="text-white font-bold">Qty</TableHead>
                   <TableHead className="text-white font-bold">Price</TableHead>
                   <TableHead className="text-white font-bold">
                     Discount
                   </TableHead>
-                  <TableHead className="text-white font-bold">CGST %</TableHead>
-                  <TableHead className="text-white font-bold">SGST %</TableHead>
+                  <TableHead className="text-white font-bold">GST %</TableHead>
                   <TableHead className="text-white font-bold">Total</TableHead>
                   <TableHead className="text-white font-bold text-center">
                     Action
@@ -516,147 +640,128 @@ const InvoiceGenerator = () => {
               </TableHeader>
 
               <TableBody>
-                {rows.map((item, index) => (
-                  <TableRow
-                    key={index}
-                    className="hover:bg-blue-50 transition-colors"
-                  >
-                    {/* SEARCH FIELD */}
-                    <TableCell className="relative">
-                      <Input
-                        type="text"
-                        placeholder="Search…"
-                        value={item.search}
-                        onChange={(e) =>
-                          handleSearchChange(index, e.target.value)
-                        }
-                        onPaste={(e) => {
-                          e.preventDefault();
-                          const pasteText = e.clipboardData
-                            .getData("text")
-                            .trim();
-                          handleSearchChange(index, pasteText);
-                        }}
-                        className="min-w-[200px]"
-                      />
-
-                      {activeRow === index &&
-                        search.length > 0 &&
-                        products.length > 0 && (
-                          <div className="absolute z-50 bg-white border border-slate-300 rounded-lg shadow-2xl w-full max-h-60 overflow-auto mt-1 left-0">
-                            {products.map((p) => (
-                              <div
-                                key={p._id}
-                                className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
-                                onClick={() => handleSelectProduct(index, p)}
-                              >
-                                <div className="font-semibold text-slate-800 text-sm">
-                                  {p.partName}
-                                </div>
-                                <div className="text-xs text-slate-600">
-                                  {p.partNo}
-                                </div>
-                                <div className="text-sm text-blue-600 font-medium">
-                                  ₹{p.revisedMRP?.toLocaleString("en-IN")}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                    </TableCell>
-
-                    {/* HSN */}
-                    <TableCell>
-                      <Input
-                        value={item.tariff}
-                        onChange={(e) =>
-                          updateField(index, "tariff", e.target.value)
-                        }
-                        className="min-w-[90px]"
-                      />
-                    </TableCell>
-
-                    {/* QTY */}
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateField(
-                            index,
-                            "quantity",
-                            Math.max(1, Number(e.target.value))
-                          )
-                        }
-                        className="min-w-[70px]"
-                      />
-                    </TableCell>
-
-                    {/* PRICE */}
-                    <TableCell className="font-semibold text-slate-800 min-w-[90px]">
-                      {item.product
-                        ? `₹${item.product.revisedMRP?.toLocaleString("en-IN")}`
-                        : "-"}
-                    </TableCell>
-
-                    {/* DISCOUNT */}
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={item.discount || ""}
-                        min={0}
-                        onChange={(e) => {
-                          const v =
-                            e.target.value === "" ? 0 : Number(e.target.value);
-                          updateField(index, "discount", Math.max(0, v));
-                        }}
-                        className="min-w-[90px]"
-                      />
-                    </TableCell>
-
-                    {/* CGST % */}
-                    <TableCell className="font-semibold text-blue-600">
-                      {item.product ? `${item.product.CGSTCode}%` : "-"}
-                    </TableCell>
-
-                    {/* SGST % */}
-                    <TableCell className="font-semibold text-blue-600">
-                      {item.product ? `${item.product.SGSTCode}%` : "-"}
-                    </TableCell>
-
-                    {/* TOTAL */}
-                    <TableCell className="font-bold text-green-600 min-w-[100px]">
-                      ₹
-                      {rowFinalAmount(item).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-
-                    {/* DELETE */}
-                    <TableCell className="text-center">
-                      <button
-                        onClick={() => deleteRow(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                {items.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={10}
+                      className="text-center py-12 text-slate-500"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <FileText className="w-12 h-12 text-slate-300" />
+                        <p className="text-lg font-medium">
+                          No items added yet
+                        </p>
+                        <p className="text-sm">
+                          Search and add products to create an invoice
+                        </p>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  items.map((item, index) => (
+                    <TableRow
+                      key={index}
+                      className="hover:bg-blue-50 transition-colors"
+                    >
+                      <TableCell className="font-medium text-slate-700">
+                        {index + 1}
+                      </TableCell>
+
+                      <TableCell className="font-semibold text-slate-800 min-w-[200px]">
+                        {item.partName}
+                      </TableCell>
+
+                      <TableCell className="text-slate-600 min-w-[120px]">
+                        {item.partNo}
+                      </TableCell>
+
+                      <TableCell>
+                        <Input
+                          type="text"
+                          value={item.tariff}
+                          onChange={(e) =>
+                            updateItemField(index, "tariff", e.target.value)
+                          }
+                          className="min-w-[90px]"
+                          placeholder="HSN"
+                        />
+                      </TableCell>
+
+                      <TableCell>
+                        <Input
+                          type="text"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d.]/g, "");
+                            updateItemField(index, "quantity", value || "0");
+                          }}
+                          className="min-w-[70px]"
+                          placeholder="1"
+                        />
+                      </TableCell>
+
+                      <TableCell>
+                        <Input
+                          type="text"
+                          value={item.price}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d.]/g, "");
+                            updateItemField(index, "price", value);
+                          }}
+                          className="min-w-[100px]"
+                          placeholder="Price"
+                        />
+                      </TableCell>
+
+                      <TableCell>
+                        <Input
+                          type="text"
+                          value={item.discount}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d.]/g, "");
+                            updateItemField(index, "discount", value);
+                          }}
+                          className="min-w-[90px]"
+                          placeholder="0"
+                        />
+                      </TableCell>
+
+                      <TableCell>
+                        <Input
+                          type="text"
+                          value={item.gstRate}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d.]/g, "");
+                            updateItemField(index, "gstRate", value);
+                          }}
+                          className="min-w-[80px]"
+                          placeholder="0"
+                        />
+                      </TableCell>
+
+                      <TableCell className="font-bold text-green-600 min-w-[110px]">
+                        ₹
+                        {itemFinalAmount(item).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        <button
+                          onClick={() => deleteItem(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove item"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
-
-          {/* Add Row */}
-          <button
-            onClick={addRow}
-            className="mt-4 flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all transform hover:scale-105"
-          >
-            <Plus className="w-5 h-5" />
-            Add Item
-          </button>
         </div>
 
         {/* Payment Details */}
@@ -700,20 +805,20 @@ const InvoiceGenerator = () => {
                 Amount Paid (Max: ₹{roundedTotal.toLocaleString("en-IN")})
               </label>
               <Input
-                type="number"
-                min={0}
-                max={roundedTotal}
+                type="text"
                 placeholder="Enter amount paid"
-                value={amountPaid || ""}
+                value={amountPaid}
                 onChange={(e) => {
-                  const value = Number(e.target.value);
-                  if (value > roundedTotal) {
+                  const value = e.target.value.replace(/[^\d.]/g, "");
+                  const numValue = parseNum(value);
+                  
+                  if (numValue > roundedTotal) {
                     toast.error("Amount Exceeds Total", {
                       description: "Amount paid cannot exceed grand total.",
                     });
-                    setAmountPaid(roundedTotal);
+                    setAmountPaid(String(roundedTotal));
                   } else {
-                    setAmountPaid(Math.max(0, value));
+                    setAmountPaid(value);
                   }
                 }}
                 className="border-slate-300 text-lg font-semibold"
@@ -803,7 +908,7 @@ const InvoiceGenerator = () => {
         <div className="flex justify-end">
           <button
             onClick={handleSubmit}
-            disabled={createInvoiceMutation.isPending}
+            disabled={createInvoiceMutation.isPending || items.length === 0}
             className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             {createInvoiceMutation.isPending ? "Creating..." : "Submit Invoice"}
