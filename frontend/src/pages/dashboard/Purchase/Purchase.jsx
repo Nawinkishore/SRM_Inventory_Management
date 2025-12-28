@@ -25,9 +25,9 @@ import {
 
 import { usePurchaseList, useDeletePurchase } from "@/features/purchase/usePurchase";
 import { toast } from "sonner";
-
+import { useUser } from "@clerk/clerk-react";
 const Purchase = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useUser();
 
   // pagination state
   const [page, setPage] = useState(1);

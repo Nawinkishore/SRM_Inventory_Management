@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import { Menu, X } from "lucide-react";
-import { useAuth } from "@clerk/clerk-react";
-import { Button } from "@/components/ui/button";
+
+import {UserButton} from "@clerk/clerk-react"; 
+
 
 export default function Navbar({ isSidebarOpen, setIsSidebarOpen }) {
-  const { signOut } = useAuth();
+  
 
   return (
     <nav className="bg-white border-b fixed w-full z-30 top-0">
@@ -20,13 +21,8 @@ export default function Navbar({ isSidebarOpen, setIsSidebarOpen }) {
 
             <h1 className="text-xl font-semibold">Dashboard</h1>
           </div>
-
-          <Button
-            variant="destructive"
-            onClick={() => signOut({ redirectUrl: "/login" })}
-          >
-            Logout
-          </Button>
+          
+          <UserButton />
         </div>
       </div>
     </nav>
