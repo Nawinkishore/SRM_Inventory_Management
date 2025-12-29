@@ -3,18 +3,16 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import DashBoard from "./pages/DashBoard";
 import Home from "./pages/dashboard/Home";
-import Profile from "./pages/dashboard/profile/Profile";
 import InvoiceGenerator from "./pages/dashboard/invoice/InvoiceGenerator";
 import InvoiceList from "./pages/dashboard/invoice/InvoiceList";
-import Purchase from "./pages/dashboard/Purchase/Purchase";
-import AddStockPage from "./pages/stocksPage/AddStockPage";
-import PurchaseId from "./pages/dashboard/Purchase/PurchaseId";
-import QuotationPage from "./pages/dashboard/invoice/QuotationPage";
+import Stock from "./pages/dashboard/items/Stock";
 import InvoiceId from "./pages/dashboard/invoice/InvoiceId";
 import InvoicePreview from "./components/home/invoice/InvoicePreview";
 import { Toaster } from "sonner";
 
 import { SignedIn, SignedOut, SignIn, SignUp } from "@clerk/clerk-react";
+import AddItem from "./pages/dashboard/items/AddItem";
+import EditItem from "./pages/dashboard/items/EditItem";
 
 function App() {
   return (
@@ -57,14 +55,14 @@ function App() {
           {/* Dashboard Routes */}
           <Route path="/dashboard" element={<DashBoard />}>
             <Route index element={<Home />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="quotation" element={<QuotationPage />} />
             <Route path="invoice" element={<InvoiceGenerator />} />
             <Route path="invoices" element={<InvoiceList />} />
             <Route path="invoice/:id" element={<InvoiceId />} />
-            <Route path="purchase" element={<Purchase />} />
-            <Route path="purchase/stocks/add" element={<AddStockPage />} />
-            <Route path="purchase/:purchaseId" element={<PurchaseId />} />
+            <Route path="stocks" element={<Stock />} />
+            <Route path="stocks/add" element={<AddItem />} />
+            <Route path="/dashboard/stocks/edit/:id" element={<EditItem />} />
+
+       
           </Route>
 
           {/* Standalone Invoice Preview Route */}

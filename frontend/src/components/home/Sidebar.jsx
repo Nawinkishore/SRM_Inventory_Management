@@ -1,24 +1,42 @@
-import React from 'react';
-import { Home, User, LogOut, FileText,Sheet ,Container, ShoppingCart ,EqualApproximately } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import React from "react";
+import {
+  Home,
+  FileText,
+  Container,
+  ShoppingCart,
+ 
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const location = useLocation();
-  
+
   const menuItems = [
-    { id: 'home', label: 'Home', icon: Home, path: '/dashboard' },
-    { id: 'invoice', label: 'Invoice Generator', icon: FileText, path: '/dashboard/invoice' },
-    {id :'invoiceList', label:'Invoice List', icon: Container, path:'/dashboard/invoices' },
-    {id :'quotation', label:'Quotation', icon: EqualApproximately , path:'/dashboard/quotation' },
-    {id :'purchase' ,label:'Purchase Order', icon: ShoppingCart, path:'/dashboard/purchase' },
+    { id: "home", label: "Home", icon: Home, path: "/dashboard" },
+    {
+      id: "invoice",
+      label: "Invoice Generator",
+      icon: FileText,
+      path: "/dashboard/invoice",
+    },
+    {
+      id: "invoiceList",
+      label: "Invoice List",
+      icon: Container,
+      path: "/dashboard/invoices",
+    },
+    {
+      id: "Add Stock",
+      label: "Add Stock",
+      icon: ShoppingCart,
+      path: "/dashboard/stocks",
+    },
     // {id :'excel',label:'Import Excel', icon: Sheet, path:'/dashboard/excel' },
-    
-    
   ];
 
   const isActive = (path) => {
-    if (path === '/dashboard') {
-      return location.pathname === '/dashboard';
+    if (path === "/dashboard") {
+      return location.pathname === "/dashboard";
     }
     return location.pathname === path;
   };
@@ -27,7 +45,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     <>
       <aside
         className={`fixed inset-y-0 left-0 z-20 w-64 bg-white border-r transform transition-transform duration-200 lg:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex flex-col h-full pt-16">
@@ -41,8 +59,8 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
                   onClick={() => setIsSidebarOpen(false)}
                   className={`w-full flex hover:cursor-pointer items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
                     isActive(item.path)
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   <Icon className="mr-3 h-5 w-5" />
@@ -50,8 +68,6 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
                 </Link>
               );
             })}
-            
-            
           </nav>
         </div>
       </aside>
