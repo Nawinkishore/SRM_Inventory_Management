@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
+
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import api from "@/api/axios";
-export const useCreatePurchase = (userId) => {
+
+export const useCreatePurchase = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -9,65 +10,53 @@ export const useCreatePurchase = (userId) => {
       const response = await api.post("/purchase/create", purchaseData);
       return response.data;
     },
-
     onSuccess: () => {
-      queryClient.invalidateQueries(["purchases", userId]);
+      queryClient.invalidateQueries(["purchases"]);
     },
   });
 };
 
-
-export const usePurchaseList = ({userId, page, limit}) => {
+export const usePurchaseList = ({ page = 1, limit = 10 } = {}) => {
   return useQuery({
-    queryKey: ["purchases", userId ,page, limit],
+    queryKey: ["purchases", page, limit],
     queryFn: async () => {
-      if (!userId) return []; // safe fallback
-      
-      const response = await api.get(`/purchase/list?userId=${userId}&page=${page}&limit=${limit}`);
-      // backend returns: { purchases: [...] }
+      const response = await api.get(`/purchase/list?page=${page}&limit=${limit}`);
       return {
         purchases: response.data.purchases || [],
         pagination: response.data.pagination || null,
-      }
+      };
     },
-    enabled: !!userId, // only run after user exists
   });
 };
 
 export const usePurchaseById = (purchaseId) => {
-    return useQuery({
-        queryKey: ["purchase", purchaseId],
-        queryFn: async () => {
-            if (!purchaseId) return null; // safe fallback
+  return useQuery({
+    queryKey: ["purchase", purchaseId],
+    queryFn: async () => {
+      if (!purchaseId) return null;
+      const response = await api.get(`/purchase/${purchaseId}`);
+      return response.data.purchase || null;
+    },
+    enabled: !!purchaseId,
+  });
+};
 
-            const response = await api.get(`/purchase/${purchaseId}`);
-            // backend returns: { purchase: {...} }
-            return response.data.purchase || null;
-        },
-        enabled: !!purchaseId, // only run after purchaseId exists
-    });
-}
-
-export const useUpdatePurchase = (purchaseId, userId) => {
+export const useUpdatePurchase = (purchaseId) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (updateData) => {
-      // updateData = { orderName, items }
       const res = await api.put(`/purchase/${purchaseId}`, updateData);
       return res.data;
     },
-
     onSuccess: () => {
-      // refetch single purchase page
       queryClient.invalidateQueries(["purchase", purchaseId]);
-      // also refetch purchase list
-      queryClient.invalidateQueries(["purchases", userId]);
+      queryClient.invalidateQueries(["purchases"]);
     },
   });
 };
 
-export const useDeletePurchase = (userId) => {
+export const useDeletePurchase = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -75,22 +64,18 @@ export const useDeletePurchase = (userId) => {
       const res = await api.delete(`/purchase/delete/${purchaseId}`);
       return res.data;
     },
-
     onSuccess: () => {
-      queryClient.invalidateQueries(["purchases", userId]);
+      queryClient.invalidateQueries(["purchases"]);
     },
   });
 };
-
-// usePurchase.js
 
 export const useNextPurchaseNumber = () => {
   return useQuery({
     queryKey: ["nextPurchaseNumber"],
     queryFn: async () => {
       const response = await api.get("/purchase/nextPurchaseNumber");
-      return response.data.nextPurchaseNumber; // ← FIX
+      return response.data.nextPurchaseNumber;
     },
   });
 };
-

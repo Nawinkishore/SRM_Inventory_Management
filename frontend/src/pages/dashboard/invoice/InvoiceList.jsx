@@ -70,7 +70,7 @@ const InvoiceList = () => {
   // Status badge UI
   const getStatusBadge = (invoice) => {
     const { invoiceStatus, balanceDue } = invoice;
-
+    console.log("Rendering status badge for invoice:", invoice);
     if (invoiceStatus === "canceled")
       return (
         <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">

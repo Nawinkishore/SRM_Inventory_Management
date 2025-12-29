@@ -1,11 +1,9 @@
-import React, { useState } from "react";
-import { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -19,13 +17,11 @@ import {
   FileText,
   ShoppingCart,
 } from "lucide-react";
-
 import {
   useCreatePurchase,
   useNextPurchaseNumber,
 } from "@/features/purchase/usePurchase";
 import { toast } from "sonner";
-import { useSelector } from "react-redux";
 
 const configureColumns = [
   {
@@ -40,13 +36,13 @@ const configureColumns = [
 ];
 
 const AddStockPage = () => {
-  const { user } = useSelector((state) => state.auth);
   const { data: nextPurchaseNumber } = useNextPurchaseNumber();
   const [rows, setRows] = useState([
     { itemNumber: "", quantity: "", price: "", total: "" },
   ]);
-  const { mutate: createPurchase, loading } = useCreatePurchase();
+  const { mutate: createPurchase, isPending: loading } = useCreatePurchase();
   const [orderName, setOrderName] = useState("");
+
   useEffect(() => {
     if (nextPurchaseNumber) {
       setOrderName(nextPurchaseNumber);
@@ -63,8 +59,9 @@ const AddStockPage = () => {
       if (field === "quantity" || field === "price") {
         const qty = parseFloat(updated[index].quantity) || 0;
         const price = parseFloat(updated[index].price) || 0;
-        updated[index].total = qty * price;
+        updated[index].total = (qty * price).toFixed(2);
       }
+
       return updated;
     });
   };
@@ -79,15 +76,51 @@ const AddStockPage = () => {
     setRows((prev) => prev.filter((_, i) => i !== index));
 
   const handleSaveOrder = () => {
+    if (!orderName.trim()) {
+      toast.error("Order name is required");
+      return;
+    }
+
+    if (rows.length === 0) {
+      toast.error("Please add at least one item");
+      return;
+    }
+
+    const hasValidItems = rows.some(
+      (row) => row.itemNumber.trim() && row.quantity && row.price
+    );
+
+    if (!hasValidItems) {
+      toast.error("Please fill in at least one complete item");
+      return;
+    }
+
+    // Prepare items with proper number conversion
+    const validItems = rows
+      .filter(row => row.itemNumber.trim())
+      .map(row => ({
+        itemNumber: row.itemNumber.trim(),
+        quantity: parseFloat(row.quantity) || 0,
+        price: parseFloat(row.price) || 0,
+        total: parseFloat(row.total) || 0,
+      }));
+
     const purchaseData = {
-      userId: user._id,
-      orderName,
-      items: rows,
+      orderName: orderName.trim(),
+      items: validItems,
     };
+
     createPurchase(purchaseData, {
       onSuccess: (data) => {
         toast.success(data.message || "Purchase order created successfully");
         setRows([{ itemNumber: "", quantity: "", price: "", total: "" }]);
+        
+        // Reset to next order number
+        if (nextPurchaseNumber) {
+          const parts = nextPurchaseNumber.split("-");
+          const nextNum = parseInt(parts[1], 10) + 1;
+          setOrderName(`PUR-${String(nextNum).padStart(5, "0")}`);
+        }
       },
       onError: (error) => {
         toast.error(
@@ -97,12 +130,11 @@ const AddStockPage = () => {
     });
   };
 
-  const grandTotal = rows.reduce(
-    (sum, row) => sum + (parseFloat(row.total) || 0),
-    0
-  );
+  const grandTotal = rows.reduce((sum, row) => {
+    const total = parseFloat(row.total) || 0;
+    return sum + total;
+  }, 0);
 
-  // Check for duplicate item numbers
   const getDuplicateItemNumbers = () => {
     const itemNumbers = rows
       .map((row) => row.itemNumber.trim())
@@ -125,10 +157,8 @@ const AddStockPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-4 sm:p-6 lg:p-8">
-      {/* Header Section */}
       <div className="max-w-7xl mx-auto mb-6">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          {/* Back Button & Title */}
           <div className="flex items-center gap-4">
             <Link to="/dashboard/purchase">
               <Button
@@ -148,7 +178,6 @@ const AddStockPage = () => {
             </div>
           </div>
 
-          {/* Order Info Inputs */}
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <div className="relative">
               <FileText
@@ -183,9 +212,7 @@ const AddStockPage = () => {
         </div>
       </div>
 
-      {/* Main Content Card */}
       <div className="max-w-7xl mx-auto bg-white shadow-2xl rounded-2xl overflow-hidden border border-slate-200">
-        {/* Card Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
@@ -201,7 +228,6 @@ const AddStockPage = () => {
         </div>
 
         <div className="p-6">
-          {/* TABLE VIEW - Desktop & Tablet */}
           <div className="hidden md:block overflow-hidden border border-slate-200 rounded-xl shadow-sm">
             <div className="overflow-x-auto">
               <Table>
@@ -238,12 +264,11 @@ const AddStockPage = () => {
                               onChange={(e) =>
                                 handleChange(rowIndex, col.key, e.target.value)
                               }
-                              readOnly={col.key === "total"}
                               className={`w-full border rounded-lg px-3 py-2.5 text-sm 
                                 transition-all duration-200
                                 ${
                                   col.key === "total"
-                                    ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 font-bold text-blue-900 cursor-not-allowed"
+                                    ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 font-bold text-blue-900"
                                     : col.key === "itemNumber" &&
                                       isItemNumberDuplicate(row[col.key])
                                     ? "border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-red-50"
@@ -264,10 +289,11 @@ const AddStockPage = () => {
                       <TableCell className="text-center py-3">
                         <button
                           onClick={() => removeRow(rowIndex)}
+                          disabled={rows.length === 1}
                           className="p-2.5 rounded-lg bg-gradient-to-br from-red-500 to-red-600 
                                  hover:from-red-600 hover:to-red-700 text-white 
                                  transition-all duration-200 shadow-md hover:shadow-lg 
-                                 transform hover:scale-105"
+                                 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Trash size={16} />
                         </button>
@@ -279,7 +305,6 @@ const AddStockPage = () => {
             </div>
           </div>
 
-          {/* MOBILE VIEW - CARD MODE */}
           <div className="md:hidden space-y-4">
             {rows.map((row, rowIndex) => (
               <div
@@ -311,7 +336,6 @@ const AddStockPage = () => {
                         onChange={(e) =>
                           handleChange(rowIndex, col.key, e.target.value)
                         }
-                        readOnly={col.key === "total"}
                         className={`w-full border rounded-lg px-3 py-2.5 text-sm
                           transition-all duration-200
                           ${
@@ -336,10 +360,12 @@ const AddStockPage = () => {
 
                 <button
                   onClick={() => removeRow(rowIndex)}
+                  disabled={rows.length === 1}
                   className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 
                          bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700
                          text-white rounded-lg transition-all duration-200 text-sm font-semibold
-                         shadow-md hover:shadow-lg transform hover:scale-[1.02]"
+                         shadow-md hover:shadow-lg transform hover:scale-[1.02]
+                         disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash size={14} />
                   Remove Item
@@ -348,7 +374,6 @@ const AddStockPage = () => {
             ))}
           </div>
 
-          {/* Summary Card */}
           {rows.length > 0 && (
             <div className="mt-6 p-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border-2 border-blue-200">
               <div className="flex justify-between items-center">
@@ -376,7 +401,6 @@ const AddStockPage = () => {
             </div>
           )}
 
-          {/* Duplicate Warning */}
           {hasDuplicates && (
             <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
               <div className="flex-shrink-0 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
@@ -397,7 +421,6 @@ const AddStockPage = () => {
             </div>
           )}
 
-          {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-3 mt-8">
             <button
               onClick={addRows}

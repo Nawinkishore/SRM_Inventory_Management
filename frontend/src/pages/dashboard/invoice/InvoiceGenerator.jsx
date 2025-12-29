@@ -11,6 +11,15 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function useDebounce(value, delay = 400) {
   const [debounced, setDebounced] = useState(value);
@@ -33,23 +42,17 @@ const InvoiceGenerator = () => {
   const createInvoiceMutation = useCreateInvoice();
 
   const now = new Date();
-  const formatedDate =
-    now.getDate().toString().padStart(2, "0") +
-    "/" +
-    (now.getMonth() + 1).toString().padStart(2, "0") +
-    "/" +
-    now.getFullYear();
 
   // Invoice Type State
-  const [invoiceType, setInvoiceType] = React.useState("sales");
-
+  const [invoiceType, setInvoiceType] = React.useState("job-card");
+  const [invoiceDate, setInvoiceDate] = React.useState();
   // Customer State
   const [customerDetails, setCustomerDetails] = React.useState({
     name: "",
     phone: "",
   });
 
-  // Vehicle State (only for job-card) - UPDATED WITH SERVICE DETAILS
+  // Vehicle State (only for job-card)
   const [vehicleDetails, setVehicleDetails] = React.useState({
     registrationNumber: "",
     frameNumber: "",
@@ -107,7 +110,8 @@ const InvoiceGenerator = () => {
     return itemGSTAmount(item) / 2;
   };
 
-  const itemFinalAmount = (item) => getTaxableAmount(item) + itemGSTAmount(item);
+  const itemFinalAmount = (item) =>
+    getTaxableAmount(item) + itemGSTAmount(item);
   const itemTotalBeforeTax = (item) => getTaxableAmount(item);
 
   // Prevent duplicate
@@ -135,7 +139,7 @@ const InvoiceGenerator = () => {
       partNo: product.partNo || "",
       largeGroup: product.largeGroup || "",
       hsnCode: product.hsnCode || "",
-      
+
       // Editable fields - stored as strings
       quantity: "1",
       price: String(parseNum(product.revisedMRP)),
@@ -194,7 +198,7 @@ const InvoiceGenerator = () => {
   const generateInvoicePayload = () => {
     return {
       invoiceNumber,
-      invoiceDate: new Date(),
+      invoiceDate: invoiceDate ? invoiceDate : now.toISOString(),
       invoiceType,
 
       customer: {
@@ -208,8 +212,12 @@ const InvoiceGenerator = () => {
               registrationNumber: vehicleDetails.registrationNumber || null,
               frameNumber: vehicleDetails.frameNumber || null,
               model: vehicleDetails.model || null,
-              nextServiceKm: vehicleDetails.nextServiceKm ? Number(vehicleDetails.nextServiceKm) : null,
-              nextServiceDate: vehicleDetails.nextServiceDate ? new Date(vehicleDetails.nextServiceDate) : null,
+              nextServiceKm: vehicleDetails.nextServiceKm
+                ? Number(vehicleDetails.nextServiceKm)
+                : null,
+              nextServiceDate: vehicleDetails.nextServiceDate
+                ? new Date(vehicleDetails.nextServiceDate)
+                : null,
             }
           : {
               registrationNumber: null,
@@ -223,7 +231,7 @@ const InvoiceGenerator = () => {
         const gstRate = parseNum(item.gstRate);
         const cgstRate = gstRate / 2;
         const sgstRate = gstRate / 2;
-        
+
         const cgstAmount = itemCGSTAmount(item);
         const sgstAmount = itemSGSTAmount(item);
         const taxAmount = itemGSTAmount(item);
@@ -358,9 +366,9 @@ const InvoiceGenerator = () => {
                 Invoice Date
               </label>
               <Input
-                type="text"
-                value={formatedDate}
-                readOnly
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                value={invoiceDate}
+                type="date"
                 className="bg-slate-50 font-mono text-lg border-slate-300"
               />
             </div>
@@ -368,15 +376,20 @@ const InvoiceGenerator = () => {
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Invoice Type
               </label>
-              <select
+              <Select
                 value={invoiceType}
-                onChange={(e) => setInvoiceType(e.target.value)}
+                onValueChange={(value) => setInvoiceType(value)}
                 className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-md bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="sales">Sales</option>
-                <option value="advance">Advance</option>
-                <option value="job-card">Job Card</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="job-card">Job Card</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
+                  <SelectItem value="advance">Advance</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -429,7 +442,7 @@ const InvoiceGenerator = () => {
           </div>
         </div>
 
-        {/* Vehicle Details - Only for Job Card - WITH SERVICE DETAILS */}
+        {/* Vehicle Details - Only for Job Card */}
         {showVehicleDetails && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
             <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -480,7 +493,7 @@ const InvoiceGenerator = () => {
                 </label>
                 <Input
                   type="text"
-                  placeholder="e.g., Hero Splendor"
+                  placeholder="e.g., R15 V4"
                   value={vehicleDetails.model}
                   onChange={(e) =>
                     setVehicleDetails({
@@ -693,7 +706,16 @@ const InvoiceGenerator = () => {
                           value={item.quantity}
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
-                            updateItemField(index, "quantity", value || "0");
+                            updateItemField(index, "quantity", value);
+                          }}
+                          onBlur={(e) => {
+                            // If empty or 0, set to "1" on blur
+                            if (
+                              !e.target.value ||
+                              parseNum(e.target.value) === 0
+                            ) {
+                              updateItemField(index, "quantity", "1");
+                            }
                           }}
                           className="min-w-[70px]"
                           placeholder="1"
@@ -708,6 +730,12 @@ const InvoiceGenerator = () => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
                             updateItemField(index, "price", value);
                           }}
+                          onBlur={(e) => {
+                            // If empty, set to "0" on blur
+                            if (!e.target.value) {
+                              updateItemField(index, "price", "0");
+                            }
+                          }}
                           className="min-w-[100px]"
                           placeholder="Price"
                         />
@@ -721,6 +749,12 @@ const InvoiceGenerator = () => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
                             updateItemField(index, "discount", value);
                           }}
+                          onBlur={(e) => {
+                            // If empty, set to "0" on blur
+                            if (!e.target.value) {
+                              updateItemField(index, "discount", "0");
+                            }
+                          }}
                           className="min-w-[90px]"
                           placeholder="0"
                         />
@@ -733,6 +767,12 @@ const InvoiceGenerator = () => {
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
                             updateItemField(index, "gstRate", value);
+                          }}
+                          onBlur={(e) => {
+                            // If empty, set to "0" on blur
+                            if (!e.target.value) {
+                              updateItemField(index, "gstRate", "0");
+                            }
                           }}
                           className="min-w-[80px]"
                           placeholder="0"
@@ -811,7 +851,7 @@ const InvoiceGenerator = () => {
                 onChange={(e) => {
                   const value = e.target.value.replace(/[^\d.]/g, "");
                   const numValue = parseNum(value);
-                  
+
                   if (numValue > roundedTotal) {
                     toast.error("Amount Exceeds Total", {
                       description: "Amount paid cannot exceed grand total.",

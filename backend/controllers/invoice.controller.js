@@ -67,6 +67,16 @@ export const createInvoice = async (req, res) => {
       });
     }
 
+    // Calculate balance due
+    const grandTotal = Number(invoiceData.totals?.grandTotal || 0);
+    const amountPaid = Number(invoiceData.amountPaid || 0);
+    invoiceData.balanceDue = Math.max(0, grandTotal - amountPaid);
+
+    // Set status based on balance (pre-save hook will also do this)
+    if (invoiceData.invoiceStatus !== "canceled") {
+      invoiceData.invoiceStatus = invoiceData.balanceDue <= 0 ? "completed" : "draft";
+    }
+
     // Create invoice
     const invoice = await Invoice.create(invoiceData);
 
@@ -114,8 +124,14 @@ export const getInvoices = async (req, res) => {
       query.invoiceType = invoiceType;
     }
 
+    // Fix: Handle "overdue" status filter
     if (invoiceStatus && invoiceStatus !== "all") {
-      query.invoiceStatus = invoiceStatus;
+      if (invoiceStatus === "overdue") {
+        query.balanceDue = { $gt: 0 };
+        query.invoiceStatus = { $ne: "canceled" };
+      } else {
+        query.invoiceStatus = invoiceStatus;
+      }
     }
 
     if (q) {
@@ -200,6 +216,28 @@ export const updateInvoice = async (req, res) => {
     // Prevent updating invoice number
     delete updateData.invoiceNumber;
 
+    // Calculate balance due if amounts are being updated
+    if (updateData.amountPaid !== undefined || updateData.totals?.grandTotal !== undefined) {
+      const currentInvoice = await Invoice.findById(id);
+      
+      if (!currentInvoice) {
+        return res.status(404).json({
+          success: false,
+          message: "Invoice not found",
+        });
+      }
+
+      const grandTotal = updateData.totals?.grandTotal ?? currentInvoice.totals?.grandTotal ?? 0;
+      const amountPaid = updateData.amountPaid ?? currentInvoice.amountPaid ?? 0;
+      
+      updateData.balanceDue = Math.max(0, Number(grandTotal) - Number(amountPaid));
+      
+      // Update status based on balance (only if not canceled)
+      if (updateData.invoiceStatus !== "canceled" && currentInvoice.invoiceStatus !== "canceled") {
+        updateData.invoiceStatus = updateData.balanceDue <= 0 ? "completed" : "draft";
+      }
+    }
+
     const invoice = await Invoice.findByIdAndUpdate(
       id,
       { $set: updateData },
@@ -219,6 +257,7 @@ export const updateInvoice = async (req, res) => {
       data: invoice,
     });
   } catch (error) {
+    console.error("Update Invoice Error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to update invoice",

@@ -95,7 +95,7 @@ const convertProductToItem = (product) => {
     partNo: product.partNo || "",
     partName: product.partName || "",
     largeGroup: product.largeGroup || "",
-    tariff: product.tariff || "",
+    tariff: product.tariff || product.hsnCode || "",
     revisedMRP: price,
     hsnCode: product.hsnCode || "",
     CGSTCode: gstRate / 2,
@@ -210,33 +210,37 @@ const InvoiceId = () => {
     setSearch("");
   };
 
-  // Update item field
+  // Update item field - FIXED VERSION
   const updateItemField = (index, field, value) => {
     setInvoiceState((prev) => {
       const items = [...prev.items];
-      items[index] = { ...items[index], [field]: value };
+      const item = { ...items[index] };
 
-      // Recalculate this item
-      const item = items[index];
-      const qty = parseNum(item.quantity);
-      const price = parseNum(item.revisedMRP);
-      const discount = parseNum(item.discount);
-      const gstRate = parseNum(item.CGSTCode) + parseNum(item.SGSTCode);
+      // Update the field with the raw value (keep as string for inputs)
+      item[field] = value;
 
-      const taxable = Math.max(0, qty * price - discount);
-      const cgstAmount = (taxable * (gstRate / 2)) / 100;
-      const sgstAmount = (taxable * (gstRate / 2)) / 100;
-      const taxAmount = cgstAmount + sgstAmount;
-      const finalAmount = taxable + taxAmount;
+      // Recalculate if it's a numeric field that affects totals
+      if (['quantity', 'revisedMRP', 'discount', 'CGSTCode', 'SGSTCode'].includes(field)) {
+        // For calculations, use the current values from the item being updated
+        const qty = field === 'quantity' ? parseNum(value) : parseNum(item.quantity);
+        const price = field === 'revisedMRP' ? parseNum(value) : parseNum(item.revisedMRP);
+        const discount = field === 'discount' ? parseNum(value) : parseNum(item.discount);
+        const cgst = field === 'CGSTCode' ? parseNum(value) : parseNum(item.CGSTCode);
+        const sgst = field === 'SGSTCode' ? parseNum(value) : parseNum(item.SGSTCode);
 
-      items[index] = {
-        ...item,
-        cgstAmount: Number(cgstAmount.toFixed(2)),
-        sgstAmount: Number(sgstAmount.toFixed(2)),
-        taxAmount: Number(taxAmount.toFixed(2)),
-        finalAmount: Number(finalAmount.toFixed(2)),
-      };
+        const taxable = Math.max(0, qty * price - discount);
+        const cgstAmount = (taxable * cgst) / 100;
+        const sgstAmount = (taxable * sgst) / 100;
+        const taxAmount = cgstAmount + sgstAmount;
+        const finalAmount = taxable + taxAmount;
 
+        item.cgstAmount = Number(cgstAmount.toFixed(2));
+        item.sgstAmount = Number(sgstAmount.toFixed(2));
+        item.taxAmount = Number(taxAmount.toFixed(2));
+        item.finalAmount = Number(finalAmount.toFixed(2));
+      }
+
+      items[index] = item;
       return { ...prev, items };
     });
   };
@@ -251,9 +255,28 @@ const InvoiceId = () => {
 
   const handleSave = async () => {
     try {
+      // Convert string values to numbers for items
+      const itemsToSave = invoice.items.map((item) => ({
+        ...item,
+        quantity: parseNum(item.quantity),
+        revisedMRP: parseNum(item.revisedMRP),
+        discount: parseNum(item.discount),
+        CGSTCode: parseNum(item.CGSTCode),
+        SGSTCode: parseNum(item.SGSTCode),
+        IGSTCode: parseNum(item.IGSTCode),
+        cgstAmount: parseNum(item.cgstAmount),
+        sgstAmount: parseNum(item.sgstAmount),
+        igstAmount: parseNum(item.igstAmount),
+        taxAmount: parseNum(item.taxAmount),
+        finalAmount: parseNum(item.finalAmount),
+        // Keep tariff/hsnCode as string
+        tariff: String(item.tariff || ""),
+        hsnCode: String(item.hsnCode || ""),
+      }));
+
       // Recalculate totals before saving
       const calculatedTotals = calculateTotalsFromItems(
-        invoice.items,
+        itemsToSave,
         invoice.amountPaid
       );
 
@@ -263,12 +286,7 @@ const InvoiceId = () => {
           invoiceDate: invoice.invoiceDate,
           customer: invoice.customer,
           vehicle: invoice.vehicle,
-          items: invoice.items.map((item) => ({
-            ...item,
-            quantity: parseNum(item.quantity),
-            revisedMRP: parseNum(item.revisedMRP),
-            discount: parseNum(item.discount),
-          })),
+          items: itemsToSave,
           totals: {
             subTotal: calculatedTotals.subTotal,
             totalDiscount: calculatedTotals.totalDiscount,
@@ -506,6 +524,7 @@ const InvoiceId = () => {
             <label className="block text-slate-600 mb-2 font-medium">Name</label>
             <input
               readOnly={!isEditing}
+              type="text"
               value={invoice.customer?.name || ""}
               onChange={(e) =>
                 setInvoiceState({
@@ -523,6 +542,7 @@ const InvoiceId = () => {
             <label className="block text-slate-600 mb-2 font-medium">Phone</label>
             <input
               readOnly={!isEditing}
+              type="text"
               value={invoice.customer?.phone || ""}
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -555,6 +575,7 @@ const InvoiceId = () => {
               </label>
               <input
                 readOnly={!isEditing}
+                type="text"
                 value={invoice.vehicle?.registrationNumber || ""}
                 onChange={(e) =>
                   setInvoiceState({
@@ -577,6 +598,7 @@ const InvoiceId = () => {
               </label>
               <input
                 readOnly={!isEditing}
+                type="text"
                 value={invoice.vehicle?.frameNumber || ""}
                 onChange={(e) =>
                   setInvoiceState({
@@ -599,6 +621,7 @@ const InvoiceId = () => {
               </label>
               <input
                 readOnly={!isEditing}
+                type="text"
                 value={invoice.vehicle?.model || ""}
                 onChange={(e) =>
                   setInvoiceState({
@@ -686,7 +709,7 @@ const InvoiceId = () => {
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-3 top-1/3 -translate-y-1/2  text-slate-400" size={18} />
             <Input
               placeholder="Search products by name or part number..."
               className="pl-10 mb-3"
@@ -780,11 +803,12 @@ const InvoiceId = () => {
                       {isEditing ? (
                         <Input
                           type="text"
-                          value={item.quantity}
+                          value={item.quantity || ""}
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
-                            updateItemField(i, "quantity", value || "0");
+                            updateItemField(i, "quantity", value);
                           }}
+                          placeholder="1"
                           className="w-20"
                         />
                       ) : (
@@ -795,11 +819,12 @@ const InvoiceId = () => {
                       {isEditing ? (
                         <Input
                           type="text"
-                          value={item.revisedMRP}
+                          value={item.revisedMRP || ""}
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
                             updateItemField(i, "revisedMRP", value);
                           }}
+                          placeholder="0"
                           className="w-24"
                         />
                       ) : (
@@ -810,7 +835,7 @@ const InvoiceId = () => {
                       {isEditing ? (
                         <Input
                           type="text"
-                          value={item.discount === 0 || item.discount === "0" ? "" : item.discount}
+                          value={item.discount || ""}
                           placeholder="0"
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
@@ -826,13 +851,14 @@ const InvoiceId = () => {
                       {isEditing ? (
                         <Input
                           type="text"
-                          value={gstRate}
+                          value={gstRate || ""}
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
-                            const rate = parseNum(value);
-                            updateItemField(i, "CGSTCode", rate / 2);
-                            updateItemField(i, "SGSTCode", rate / 2);
+                            const halfRate = parseNum(value) / 2;
+                            updateItemField(i, "CGSTCode", halfRate.toString());
+                            updateItemField(i, "SGSTCode", halfRate.toString());
                           }}
+                          placeholder="0"
                           className="w-20"
                         />
                       ) : (
