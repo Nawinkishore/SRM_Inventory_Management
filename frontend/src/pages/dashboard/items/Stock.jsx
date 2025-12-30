@@ -29,11 +29,12 @@ const Stock = () => {
   const [query, setQuery] = useState("");
 
   const { data, isLoading } = useItems({ page, limit, q: query });
-  const { data: summary } = useStockSummary();
+  const { data: summary, isLoading: summaryLoading } = useStockSummary();
   const { mutate: deleteItem } = useDeleteItem();
 
-  const items = data?.items || [];
-  const pagination = data?.pagination || {};
+  // ✅ FIXED: Use correct data structure
+  const items = data?.data || [];
+  const meta = data?.meta || {};
 
   const handleDelete = (id) => {
     if (!window.confirm("Delete this item?")) return;
@@ -82,7 +83,9 @@ const Stock = () => {
             <TrendingUp className="w-5 h-5 opacity-80" />
           </div>
           <p className="text-blue-100 text-sm font-medium mb-1">Total Items</p>
-          <h2 className="text-4xl font-bold">{pagination?.total || 0}</h2>
+          <h2 className="text-4xl font-bold">
+            {isLoading ? "..." : meta?.totalDocs || 0}
+          </h2>
         </div>
 
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-transform duration-200">
@@ -93,7 +96,9 @@ const Stock = () => {
             <TrendingUp className="w-5 h-5 opacity-80" />
           </div>
           <p className="text-emerald-100 text-sm font-medium mb-1">Total Quantity</p>
-          <h2 className="text-4xl font-bold">{summary?.totalQty || 0}</h2>
+          <h2 className="text-4xl font-bold">
+            {summaryLoading ? "..." : summary?.totalQty || 0}
+          </h2>
         </div>
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-transform duration-200 sm:col-span-2 lg:col-span-1">
@@ -105,7 +110,7 @@ const Stock = () => {
           </div>
           <p className="text-purple-100 text-sm font-medium mb-1">Stock Value</p>
           <h2 className="text-4xl font-bold">
-            ₹{(summary?.totalStockValue || 0).toLocaleString()}
+            ₹{summaryLoading ? "..." : (summary?.stockValue || 0).toLocaleString('en-IN')}
           </h2>
         </div>
 
@@ -142,6 +147,7 @@ const Stock = () => {
                   <TableHead className="font-semibold text-slate-700">Stock</TableHead>
                   <TableHead className="font-semibold text-slate-700">Sale Price</TableHead>
                   <TableHead className="font-semibold text-slate-700 hidden sm:table-cell">Purchase Price</TableHead>
+                  <TableHead className="font-semibold text-slate-700 hidden md:table-cell">GST %</TableHead>
                   <TableHead className="text-center font-semibold text-slate-700">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -150,18 +156,26 @@ const Stock = () => {
                 {items.map(item => (
                   <TableRow key={item._id} className="hover:bg-slate-50 transition-colors">
                     <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
-                    <TableCell className="text-slate-600">{item.partNo}</TableCell>
+                    <TableCell className="text-slate-600 font-mono text-sm">{item.partNo}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        item.stock > 50 ? 'bg-emerald-100 text-emerald-700' : 
-                        item.stock > 20 ? 'bg-amber-100 text-amber-700' : 
+                        Number(item.stock) > 50 ? 'bg-emerald-100 text-emerald-700' : 
+                        Number(item.stock) > 20 ? 'bg-amber-100 text-amber-700' : 
+                        Number(item.stock) > 0 ? 'bg-orange-100 text-orange-700' :
                         'bg-red-100 text-red-700'
                       }`}>
-                        {item.stock}
+                        {Number(item.stock) || 0}
                       </span>
                     </TableCell>
-                    <TableCell className="font-semibold text-slate-800">₹{item.salePrice}</TableCell>
-                    <TableCell className="text-slate-600 hidden sm:table-cell">₹{item.purchasePrice}</TableCell>
+                    <TableCell className="font-semibold text-slate-800">
+                      ₹{Number(item.salePrice || 0).toLocaleString('en-IN')}
+                    </TableCell>
+                    <TableCell className="text-slate-600 hidden sm:table-cell">
+                      ₹{Number(item.purchasePrice || 0).toLocaleString('en-IN')}
+                    </TableCell>
+                    <TableCell className="text-slate-600 hidden md:table-cell">
+                      {Number(item.gst || 0)}%
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-2 justify-center">
                         <Link to={`/dashboard/stocks/edit/${item._id}`}>
@@ -183,13 +197,13 @@ const Stock = () => {
 
                 {items.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
                         <div className="bg-slate-100 p-4 rounded-full">
                           <Package className="w-8 h-8 text-slate-400" />
                         </div>
                         <p className="text-slate-500 font-medium">No items found</p>
-                        <p className="text-sm text-slate-400">Try adjusting your search</p>
+                        <p className="text-sm text-slate-400">Try adjusting your search or add new items</p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -202,7 +216,7 @@ const Stock = () => {
       </div>
 
       {/* Pagination */}
-      {pagination?.totalPages > 1 && (
+      {meta?.totalPages > 1 && (
         <div className="mt-8">
           <Pagination>
             <PaginationContent className="flex-wrap gap-2">
@@ -210,17 +224,20 @@ const Stock = () => {
               <PaginationItem>
                 <PaginationPrevious
                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                  className="cursor-pointer hover:bg-slate-100 rounded-lg transition-colors"
+                  className={`cursor-pointer hover:bg-slate-100 rounded-lg transition-colors ${
+                    page === 1 ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={page === 1}
                 />
               </PaginationItem>
 
-              {Array.from({ length: pagination.totalPages }).map((_, i) => (
+              {Array.from({ length: meta.totalPages }).map((_, i) => (
                 <PaginationItem key={i}>
                   <PaginationLink
-                    isActive={pagination.currentPage === i + 1}
+                    isActive={meta.page === i + 1}
                     onClick={() => setPage(i + 1)}
                     className={`cursor-pointer rounded-lg transition-all ${
-                      pagination.currentPage === i + 1 
+                      meta.page === i + 1 
                         ? 'bg-blue-600 text-white hover:bg-blue-700' 
                         : 'hover:bg-slate-100'
                     }`}
@@ -232,10 +249,11 @@ const Stock = () => {
 
               <PaginationItem>
                 <PaginationNext
-                  onClick={() =>
-                    setPage(p => Math.min(pagination.totalPages, p + 1))
-                  }
-                  className="cursor-pointer hover:bg-slate-100 rounded-lg transition-colors"
+                  onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+                  className={`cursor-pointer hover:bg-slate-100 rounded-lg transition-colors ${
+                    page === meta.totalPages ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={page === meta.totalPages}
                 />
               </PaginationItem>
 

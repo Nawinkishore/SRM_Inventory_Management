@@ -35,8 +35,8 @@ const EditItem = () => {
     partNo: "",
     salePrice: "",
     purchasePrice: "",
-    gst: 18,
-    stock: ""
+    gst: "18",
+    stock: "0"
   });
 
   // load data into form once fetched
@@ -45,31 +45,59 @@ const EditItem = () => {
       setForm({
         name: item.name || "",
         partNo: item.partNo || "",
-        salePrice: item.salePrice || "",
-        purchasePrice: item.purchasePrice || "",
-        gst: item.gst || 18,
-        stock: item.stock || ""
+        salePrice: String(item.salePrice || "0"),
+        purchasePrice: String(item.purchasePrice || "0"),
+        gst: String(item.gst || "18"),
+        stock: String(Math.max(0, item.stock || 0))
       });
     }
   }, [item]);
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    // For numeric fields, allow only valid number inputs
+    if (name === 'stock' || name === 'salePrice' || name === 'purchasePrice' || name === 'gst') {
+      // Allow empty string, digits, and decimal point
+      if (value !== '' && !/^\d*\.?\d*$/.test(value)) {
+        return;
+      }
+      
+      // Prevent negative values
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue) && numValue < 0) {
+        return;
+      }
+    }
+
     setForm({
       ...form,
-      [e.target.name]: e.target.value
+      [name]: value
     });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (!form.name || !form.partNo) {
+      toast.error("Name & Part Number are required");
+      return;
+    }
+
+    // Convert string values to numbers, ensuring non-negative values
+    const stockValue = Math.max(0, parseInt(form.stock) || 0);
+    const salePriceValue = Math.max(0, parseFloat(form.salePrice) || 0);
+    const purchasePriceValue = Math.max(0, parseFloat(form.purchasePrice) || 0);
+    const gstValue = Math.max(0, parseFloat(form.gst) || 18);
+
     updateItem(
       {
-        ...form,
-        salePrice: Number(form.salePrice || 0),
-        purchasePrice: Number(form.purchasePrice || 0),
-        gst: Number(form.gst || 18),
-        stock: Number(form.stock || 0),
+        name: form.name.trim(),
+        partNo: form.partNo.trim(),
+        salePrice: salePriceValue,
+        purchasePrice: purchasePriceValue,
+        gst: gstValue,
+        stock: stockValue,
       },
       {
         onSuccess: () => {
@@ -82,6 +110,14 @@ const EditItem = () => {
       }
     );
   };
+
+  // Calculate profit safely
+  const salePrice = parseFloat(form.salePrice) || 0;
+  const purchasePrice = parseFloat(form.purchasePrice) || 0;
+  const stock = parseInt(form.stock) || 0;
+  const profitPerUnit = salePrice - purchasePrice;
+  const profitMargin = salePrice > 0 ? ((profitPerUnit / salePrice) * 100) : 0;
+  const totalPotential = profitPerUnit * stock;
 
   if (isLoading) {
     return (
@@ -182,7 +218,7 @@ const EditItem = () => {
 
         {/* Form Card */}
         <Card className="shadow-xl border-slate-200">
-          <CardHeader >
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
             <CardTitle className="flex items-center gap-2 text-slate-800">
               <TrendingUp className="w-5 h-5 text-blue-600" />
               Item Information
@@ -199,7 +235,7 @@ const EditItem = () => {
                 <div className="space-y-2">
                   <Label className="text-slate-700 font-medium flex items-center gap-2">
                     <Package className="w-4 h-4 text-blue-600" />
-                    Item Name
+                    Item Name *
                   </Label>
                   <Input
                     name="name"
@@ -215,7 +251,7 @@ const EditItem = () => {
                 <div className="space-y-2">
                   <Label className="text-slate-700 font-medium flex items-center gap-2">
                     <Hash className="w-4 h-4 text-emerald-600" />
-                    Part Number
+                    Part Number *
                   </Label>
                   <Input
                     name="partNo"
@@ -249,7 +285,8 @@ const EditItem = () => {
                       </span>
                       <Input
                         name="salePrice"
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={form.salePrice}
                         onChange={handleChange}
                         className="pl-7 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
@@ -269,7 +306,8 @@ const EditItem = () => {
                       </span>
                       <Input
                         name="purchasePrice"
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={form.purchasePrice}
                         onChange={handleChange}
                         className="pl-7 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
@@ -286,7 +324,8 @@ const EditItem = () => {
                     </Label>
                     <Input
                       name="gst"
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={form.gst}
                       onChange={handleChange}
                       className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
@@ -310,22 +349,23 @@ const EditItem = () => {
                   </Label>
                   <Input
                     name="stock"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={form.stock}
                     onChange={handleChange}
                     className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
                     placeholder="0"
                   />
                   <p className="text-xs text-slate-500">
-                    Current available stock units
+                    Current available stock units (cannot be negative)
                   </p>
                 </div>
               </div>
 
               {/* Profit Margin Display */}
-              {form.salePrice && form.purchasePrice && (
+              {salePrice > 0 && purchasePrice > 0 && (
                 <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-sm text-purple-900 font-medium">Estimated Profit Margin</p>
                       <p className="text-xs text-purple-700 mt-1">
@@ -334,13 +374,24 @@ const EditItem = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-purple-900">
-                        ₹{(Number(form.salePrice) - Number(form.purchasePrice)).toFixed(2)}
+                        ₹{profitPerUnit.toFixed(2)}
                       </p>
                       <p className="text-xs text-purple-700">
-                        {((Number(form.salePrice) - Number(form.purchasePrice)) / Number(form.salePrice) * 100).toFixed(1)}% margin
+                        {profitMargin.toFixed(1)}% margin
                       </p>
                     </div>
                   </div>
+                  
+                  {stock > 0 && (
+                    <div className="bg-white rounded-lg p-3 border border-purple-100 mt-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-slate-600">Total Potential Profit</p>
+                        <p className="text-lg font-bold text-purple-900">
+                          ₹{totalPotential.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

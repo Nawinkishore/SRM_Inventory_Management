@@ -124,14 +124,8 @@ export const getInvoices = async (req, res) => {
       query.invoiceType = invoiceType;
     }
 
-    // Fix: Handle "overdue" status filter
     if (invoiceStatus && invoiceStatus !== "all") {
-      if (invoiceStatus === "overdue") {
-        query.balanceDue = { $gt: 0 };
-        query.invoiceStatus = { $ne: "canceled" };
-      } else {
-        query.invoiceStatus = invoiceStatus;
-      }
+      query.invoiceStatus = invoiceStatus;
     }
 
     if (q) {
@@ -157,14 +151,15 @@ export const getInvoices = async (req, res) => {
 
     const total = await Invoice.countDocuments(query);
 
+    // Changed response structure
     res.status(200).json({
       success: true,
       data: invoices,
-      pagination: {
+      meta: {
         page: parseInt(page, 10),
         limit: parseInt(limit, 10),
-        total,
-        pages: Math.ceil(total / limit),
+        totalDocs: total,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {

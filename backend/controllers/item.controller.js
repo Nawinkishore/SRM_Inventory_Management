@@ -27,7 +27,6 @@ export const createItem = async (req, res) => {
   }
 };
 
-
 // LIST + SEARCH + PAGINATION
 export const getItems = async (req, res) => {
   try {
@@ -51,13 +50,14 @@ export const getItems = async (req, res) => {
       .skip((page - 1) * limit)
       .limit(limit);
 
+    // Changed response structure to match frontend expectations
     res.json({
-      items,
-      pagination: {
-        total,
+      data: items,  // Changed from 'items' to 'data'
+      meta: {
+        totalDocs: total,
         totalPages: Math.ceil(total / limit),
-        currentPage: page,
-        limit
+        page: page,
+        limit: limit
       }
     });
 
@@ -110,17 +110,18 @@ export const deleteItem = async (req, res) => {
 
 
 // SUMMARY (Dashboard)
+
 export const getStockSummary = async (req, res) => {
   try {
     const items = await Item.find();
 
     const totalQty = items.reduce((s, i) => s + i.stock, 0);
-    const totalStockValue = items.reduce(
+    const stockValue = items.reduce(
       (s, i) => s + i.purchasePrice * i.stock,
       0
     );
 
-    res.json({ totalQty, totalStockValue });
+    res.json({ totalQty, stockValue }); // Changed from totalStockValue to stockValue
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
