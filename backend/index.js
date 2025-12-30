@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors({
   origin: [process.env.CLIENT_URL,
-    "https://srm-frontend-4xed.onrender.com",
+    "https://srm-frontend-8woo.onrender.com",
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
