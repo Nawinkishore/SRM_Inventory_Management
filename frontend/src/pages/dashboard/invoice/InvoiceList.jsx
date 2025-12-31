@@ -89,7 +89,7 @@ const InvoiceList = () => {
   // ================= ERROR STATE =================
   if (isError)
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <X className="w-8 h-8 text-red-600" />
@@ -103,14 +103,14 @@ const InvoiceList = () => {
     );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* HEADER */}
         <div className="text-center space-y-3 sm:space-y-4">
-          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 shadow-2xl mb-2 transform hover:scale-105 transition-transform">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-linear-to-br from-blue-500 via-indigo-600 to-purple-600 shadow-2xl mb-2 transform hover:scale-105 transition-transform">
             <FileText className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-slate-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold bg-linear-to-r from-slate-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent">
             Invoice Management
           </h1>
           <p className="text-sm sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto">
@@ -180,7 +180,7 @@ const InvoiceList = () => {
         {/* FILTERS */}
         <div className="bg-white/90 rounded-3xl shadow-2xl border overflow-hidden">
           <div
-            className="flex items-center justify-between p-5 bg-gradient-to-r from-blue-50 to-indigo-50 cursor-pointer lg:cursor-default"
+            className="flex items-center justify-between p-5 bg-linear-to-r from-blue-50 to-indigo-50 cursor-pointer lg:cursor-default"
             onClick={() => setShowFilters(!showFilters)}
           >
             <div className="flex items-center gap-3">
@@ -275,7 +275,7 @@ const InvoiceList = () => {
             <div className="hidden lg:block bg-white/90 rounded-3xl shadow-2xl border overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-50">
+                  <TableRow className="bg-linear-to-r from-slate-50 via-blue-50 to-indigo-50">
                     <TableHead>Invoice No</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Phone</TableHead>

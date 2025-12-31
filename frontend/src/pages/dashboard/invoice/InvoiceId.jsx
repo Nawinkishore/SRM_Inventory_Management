@@ -34,7 +34,7 @@ const Table = ({ children, ...props }) => (
 );
 
 const TableHeader = ({ children, ...props }) => (
-  <thead className="[&_tr]:border-b bg-gradient-to-r from-blue-500 to-indigo-600" {...props}>
+  <thead className="[&_tr]:border-b bg-linear-to-r from-blue-500 to-indigo-600" {...props}>
     {children}
   </thead>
 );
@@ -333,7 +333,7 @@ const InvoiceId = () => {
   );
 
   return (
-    <div className="min-h-screen p-4 lg:p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen p-4 lg:p-6 bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* HEADER */}
       <div className="mb-6 flex items-center gap-2 flex-wrap">
         <Receipt className="text-blue-600" size={28} />
@@ -397,14 +397,14 @@ const InvoiceId = () => {
 
       {/* STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-lg">
+        <div className="bg-linear-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-lg">
           <p className="text-blue-100">Total Amount</p>
           <h1 className="text-3xl font-bold mt-1">
             ₹{totalAmount.toLocaleString("en-IN")}
           </h1>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-5 text-white shadow-lg">
+        <div className="bg-linear-to-br from-green-500 to-green-600 rounded-xl p-5 text-white shadow-lg">
           <p className="text-green-100">Amount Paid</p>
           {isEditing ? (
             <Input
@@ -440,14 +440,14 @@ const InvoiceId = () => {
           )}
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-5 text-white shadow-lg">
+        <div className="bg-linear-to-br from-orange-500 to-orange-600 rounded-xl p-5 text-white shadow-lg">
           <p className="text-orange-100">Balance Due</p>
           <h1 className="text-3xl font-bold mt-1">
             ₹{balanceDue.toLocaleString("en-IN")}
           </h1>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white shadow-lg">
+        <div className="bg-linear-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white shadow-lg">
           <p className="text-purple-100">Total Items</p>
           <h1 className="text-3xl font-bold mt-1">{totalItems}</h1>
         </div>
@@ -830,7 +830,7 @@ const InvoiceId = () => {
                           onBlur={(e) => {
                             if (!e.target.value) updateItemField(i, "gst", 0);
                           }}
-                          className="min-w-[80px]"
+                          className="min-w-20"
                           placeholder="0"
                         />
                       ) : (
@@ -849,7 +849,7 @@ const InvoiceId = () => {
                           onBlur={(e) => {
                             if (!e.target.value) updateItemField(i, "MRP", 0);
                           }}
-                          className="min-w-[80px]"
+                          className="min-w-20"
                           placeholder="0"
                         />
                       ) : (
@@ -880,7 +880,7 @@ const InvoiceId = () => {
       {/* PAYMENT DETAILS */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-6 mb-6">
         <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-          <div className="w-1.5 h-6 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full"></div>
+          <div className="w-1.5 h-6 bg-linear-to-b from-green-500 to-emerald-600 rounded-full"></div>
           Payment Details
         </h3>
         <div className="flex gap-4">
@@ -893,7 +893,7 @@ const InvoiceId = () => {
             disabled={!isEditing}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               invoice.amountType === "cash"
-                ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg"
+                ? "bg-linear-to-r from-green-500 to-emerald-600 text-white shadow-lg"
                 : "bg-slate-100 text-slate-700"
             } ${isEditing ? "cursor-pointer hover:opacity-90" : "cursor-not-allowed opacity-75"}`}
           >
@@ -908,7 +908,7 @@ const InvoiceId = () => {
             disabled={!isEditing}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               invoice.amountType === "credit"
-                ? "bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg"
+                ? "bg-linear-to-r from-orange-500 to-red-600 text-white shadow-lg"
                 : "bg-slate-100 text-slate-700"
             } ${isEditing ? "cursor-pointer hover:opacity-90" : "cursor-not-allowed opacity-75"}`}
           >
@@ -918,7 +918,7 @@ const InvoiceId = () => {
       </div>
 
       {/* TOTAL SUMMARY */}
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6 text-white mb-6">
+      <div className="bg-linear-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6 text-white mb-6">
         <h2 className="text-2xl font-bold mb-6">Invoice Summary</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>

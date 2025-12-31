@@ -488,7 +488,7 @@ const Home = () => {
 
                   return (
                     <div key={inv._id} className="flex items-start gap-3 border-b pb-3 last:border-0 hover:bg-slate-50 p-2 rounded transition-colors">
-                      <div className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${
+                      <div className={`w-3 h-3 rounded-full mt-2 shrink-0 ${
                         displayStatus === "completed" ? "bg-green-500" :
                         displayStatus === "overdue" ? "bg-red-500" : 
                         "bg-yellow-500"
