@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeft,
-  Calendar,
   User,
   Receipt,
   Package,
@@ -74,76 +73,41 @@ const parseNum = (val) => {
   return isNaN(num) ? 0 : num;
 };
 
-// Convert product into invoice item
+// Get rate excluding GST (same as InvoiceGenerator)
+const getRate = (item) => {
+  const mrp = Number(item.MRP) || 0;
+  const gst = Number(item.gst) || 0;
+
+  if (!gst) return mrp;
+  return mrp / (1 + gst / 100);
+};
+
+// Calculate final amount for an item (MRP * Quantity)
+const itemFinalAmount = (item) => {
+  const mrp = Number(item.MRP) || 0;
+  const qty = Number(item.quantity) || 0;
+  return mrp * qty;
+};
+
+// Convert product into invoice item (matching InvoiceGenerator structure)
 const convertProductToItem = (product) => {
-  const price = parseNum(product.revisedMRP);
-  const qty = 1;
-  const discount = 0;
-
-  // Combined GST rate
-  const cgst = parseNum(product.CGSTCode);
-  const sgst = parseNum(product.SGSTCode);
-  const gstRate = cgst + sgst;
-
-  const taxable = price * qty - discount;
-  const cgstAmount = (taxable * (gstRate / 2)) / 100;
-  const sgstAmount = (taxable * (gstRate / 2)) / 100;
-  const taxAmount = cgstAmount + sgstAmount;
-  const finalAmount = taxable + taxAmount;
-
   return {
     partNo: product.partNo || "",
     partName: product.partName || "",
     largeGroup: product.largeGroup || "",
-    tariff: product.tariff || product.hsnCode || "",
-    revisedMRP: price,
-    hsnCode: product.hsnCode || "",
-    CGSTCode: gstRate / 2,
-    SGSTCode: gstRate / 2,
-    IGSTCode: 0,
-    quantity: qty,
-    discount: discount,
-    cgstAmount: Number(cgstAmount.toFixed(2)),
-    sgstAmount: Number(sgstAmount.toFixed(2)),
-    igstAmount: 0,
-    taxAmount: Number(taxAmount.toFixed(2)),
-    finalAmount: Number(finalAmount.toFixed(2)),
+    tariff: product.tariff || "",
+    MRP: product.revisedMRP,
+    quantity: 1,
+    gst: product.IGSTCode,
+    rate: Number((product.revisedMRP / (1 + product.IGSTCode / 100)).toFixed(2)),
   };
 };
 
-// Calculate totals from items
-const calculateTotalsFromItems = (items = [], amountPaid = 0) => {
-  let subTotal = 0;
-  let totalDiscount = 0;
-  let totalTax = 0;
-
-  items.forEach((item) => {
-    const qty = parseNum(item.quantity);
-    const price = parseNum(item.revisedMRP);
-    const discount = parseNum(item.discount);
-
-    const taxable = Math.max(0, qty * price - discount);
-    const gstRate = parseNum(item.CGSTCode) + parseNum(item.SGSTCode);
-    const taxAmount = (taxable * gstRate) / 100;
-
-    subTotal += taxable;
-    totalDiscount += discount;
-    totalTax += taxAmount;
-  });
-
-  const grandTotal = subTotal + totalTax;
-  const roundedTotal = Math.round(grandTotal);
-  const roundOff = roundedTotal - grandTotal;
-  const balanceDue = Math.max(0, roundedTotal - parseNum(amountPaid));
-
-  return {
-    subTotal: Number(subTotal.toFixed(2)),
-    totalDiscount: Number(totalDiscount.toFixed(2)),
-    totalTax: Number(totalTax.toFixed(2)),
-    grandTotal: Number(roundedTotal.toFixed(2)),
-    roundOff: Number(roundOff.toFixed(2)),
-    balanceDue: Number(balanceDue.toFixed(2)),
-  };
+// Calculate totals from items (matching InvoiceGenerator)
+const calculateTotalsFromItems = (items = []) => {
+  return items.reduce((sum, item) => {
+    return sum + itemFinalAmount(item);
+  }, 0);
 };
 
 const InvoiceId = () => {
@@ -171,6 +135,35 @@ const InvoiceId = () => {
     }
   }, [fetchInvoice]);
 
+  // Calculate totals
+  const totalAmount = invoiceState ? calculateTotalsFromItems(invoiceState.items) : 0;
+  const amountPaid = invoiceState ? parseNum(invoiceState.amountPaid) : 0;
+  const balanceDue = Math.max(totalAmount - amountPaid, 0);
+  const totalItems = invoiceState ? invoiceState.items.length : 0;
+
+  // useEffect to auto-correct amount paid when it exceeds total or is negative
+  useEffect(() => {
+    if (!invoiceState || !isEditing) return;
+
+    const paid = parseNum(invoiceState.amountPaid);
+
+    if (paid > totalAmount) {
+      setInvoiceState(prev => ({
+        ...prev,
+        amountPaid: String(totalAmount)
+      }));
+      toast.info("Amount paid adjusted to total amount");
+    }
+
+    if (paid < 0) {
+      setInvoiceState(prev => ({
+        ...prev,
+        amountPaid: "0"
+      }));
+      toast.info("Amount paid cannot be negative");
+    }
+  }, [invoiceState?.amountPaid, totalAmount, isEditing]);
+
   if (isLoading || !invoiceState)
     return (
       <div className="flex items-center justify-center py-20">
@@ -180,130 +173,138 @@ const InvoiceId = () => {
 
   const invoice = invoiceState;
 
-  // Live totals
-  const { subTotal, totalDiscount, totalTax, grandTotal, roundOff, balanceDue } =
-    calculateTotalsFromItems(invoice.items, invoice.amountPaid);
-
-  const totalItems = invoice.items.length;
-
   // Auto status preview
-  const previewStatus =
-    invoice.invoiceStatus === "canceled"
-      ? "canceled"
-      : balanceDue <= 0
-      ? "completed"
-      : "draft";
+  const previewStatus = balanceDue <= 0 ? "completed" : "pending";
 
-  // Add product -> invoice
-  const addItemToInvoice = (product) => {
-    const newItem = convertProductToItem(product);
-
-    setInvoiceState((prev) => {
-      if (prev.items.some((i) => i.partNo === newItem.partNo)) {
-        toast.error("Item already exists");
-        return prev;
-      }
-      toast.success("Item added to invoice");
-      return { ...prev, items: [...prev.items, newItem] };
-    });
-
-    setSearch("");
+  // Check for duplicate product
+  const isDuplicateProduct = (productId) => {
+    return invoice.items.some((item) => item._id === productId);
   };
 
-  // Update item field - FIXED VERSION
+  // Add product to invoice
+  const addItemToInvoice = (product) => {
+    if (isDuplicateProduct(product._id)) {
+      toast.error("Product Already Added!");
+      return;
+    }
+
+    const newItem = convertProductToItem(product);
+
+    setInvoiceState((prev) => ({
+      ...prev,
+      items: [...prev.items, newItem],
+    }));
+
+    setSearch("");
+    toast.success("Product Added");
+  };
+
+  // Update item field
   const updateItemField = (index, field, value) => {
-    setInvoiceState((prev) => {
-      const items = [...prev.items];
-      const item = { ...items[index] };
+    const updated = [...invoice.items];
 
-      // Update the field with the raw value (keep as string for inputs)
-      item[field] = value;
+    if (field === "quantity") {
+      updated[index][field] = value === "" ? "" : Number(value);
+    } else if (field === "gst" || field === "MRP") {
+      updated[index][field] = value === "" ? "" : Number(value);
+    } else {
+      updated[index][field] = value;
+    }
 
-      // Recalculate if it's a numeric field that affects totals
-      if (['quantity', 'revisedMRP', 'discount', 'CGSTCode', 'SGSTCode'].includes(field)) {
-        // For calculations, use the current values from the item being updated
-        const qty = field === 'quantity' ? parseNum(value) : parseNum(item.quantity);
-        const price = field === 'revisedMRP' ? parseNum(value) : parseNum(item.revisedMRP);
-        const discount = field === 'discount' ? parseNum(value) : parseNum(item.discount);
-        const cgst = field === 'CGSTCode' ? parseNum(value) : parseNum(item.CGSTCode);
-        const sgst = field === 'SGSTCode' ? parseNum(value) : parseNum(item.SGSTCode);
+    // Recalculate rate when gst or MRP changes
+    if (field === "gst" || field === "MRP") {
+      updated[index].rate = Number(getRate(updated[index]).toFixed(2));
+    }
 
-        const taxable = Math.max(0, qty * price - discount);
-        const cgstAmount = (taxable * cgst) / 100;
-        const sgstAmount = (taxable * sgst) / 100;
-        const taxAmount = cgstAmount + sgstAmount;
-        const finalAmount = taxable + taxAmount;
-
-        item.cgstAmount = Number(cgstAmount.toFixed(2));
-        item.sgstAmount = Number(sgstAmount.toFixed(2));
-        item.taxAmount = Number(taxAmount.toFixed(2));
-        item.finalAmount = Number(finalAmount.toFixed(2));
-      }
-
-      items[index] = item;
-      return { ...prev, items };
-    });
+    setInvoiceState({ ...invoice, items: updated });
   };
 
   const deleteItem = (index) => {
-    setInvoiceState((prev) => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index),
-    }));
-    toast.success("Item removed");
+    const updated = invoice.items.filter((_, i) => i !== index);
+    setInvoiceState({ ...invoice, items: updated });
+    toast.info("Item Removed");
   };
 
   const handleSave = async () => {
+    // Validate customer details
+    if (!invoice.customer?.name || !invoice.customer?.phone) {
+      toast.error("Missing Customer Details", {
+        description: "Please enter customer name and phone number.",
+      });
+      return;
+    }
+
+    if (String(invoice.customer.phone).length !== 10) {
+      toast.error("Invalid Phone Number", {
+        description: "Phone number must be exactly 10 digits.",
+      });
+      return;
+    }
+
+    if (invoice.items.length === 0) {
+      toast.error("No Products Added", {
+        description: "Please add at least one product.",
+      });
+      return;
+    }
+
     try {
-      // Convert string values to numbers for items
+      // Prepare items with proper number conversion
       const itemsToSave = invoice.items.map((item) => ({
-        ...item,
-        quantity: parseNum(item.quantity),
-        revisedMRP: parseNum(item.revisedMRP),
-        discount: parseNum(item.discount),
-        CGSTCode: parseNum(item.CGSTCode),
-        SGSTCode: parseNum(item.SGSTCode),
-        IGSTCode: parseNum(item.IGSTCode),
-        cgstAmount: parseNum(item.cgstAmount),
-        sgstAmount: parseNum(item.sgstAmount),
-        igstAmount: parseNum(item.igstAmount),
-        taxAmount: parseNum(item.taxAmount),
-        finalAmount: parseNum(item.finalAmount),
-        // Keep tariff/hsnCode as string
-        tariff: String(item.tariff || ""),
-        hsnCode: String(item.hsnCode || ""),
+        partNo: item.partNo || "",
+        partName: item.partName || "",
+        largeGroup: item.largeGroup || "",
+        tariff: item.tariff || "",
+        MRP: Number(item.MRP) || 0,
+        quantity: Number(item.quantity) || 1,
+        gst: Number(item.gst) || 0,
+        rate: Number(getRate(item).toFixed(2)),
       }));
 
-      // Recalculate totals before saving
-      const calculatedTotals = calculateTotalsFromItems(
-        itemsToSave,
-        invoice.amountPaid
-      );
+      // Recalculate totals
+      const calculatedTotal = calculateTotalsFromItems(itemsToSave);
+      const paid = parseNum(invoice.amountPaid);
+      const balance = Math.max(calculatedTotal - paid, 0);
+
+      const payload = {
+        invoiceDate: invoice.invoiceDate ? new Date(invoice.invoiceDate) : new Date(),
+        invoiceType: invoice.invoiceType,
+        
+        customer: {
+          name: invoice.customer.name.trim(),
+          phone: invoice.customer.phone.trim(),
+        },
+
+        vehicle: invoice.invoiceType === "job-card" ? {
+          registrationNumber: invoice.vehicle?.registrationNumber || null,
+          frameNumber: invoice.vehicle?.frameNumber || null,
+          model: invoice.vehicle?.model || null,
+          nextServiceKm: invoice.vehicle?.nextServiceKm ? Number(invoice.vehicle.nextServiceKm) : null,
+          nextServiceDate: invoice.vehicle?.nextServiceDate ? new Date(invoice.vehicle.nextServiceDate) : null,
+        } : undefined,
+
+        items: itemsToSave,
+        
+        totalAmount: calculatedTotal,
+        amountPaid: paid,
+        balanceDue: balance,
+        
+        amountType: invoice.amountType,
+        
+        invoiceStatus: balance === 0 ? "completed" : "pending",
+      };
 
       await updateInvoice.mutateAsync({
         id: invoice._id,
-        data: {
-          invoiceDate: invoice.invoiceDate,
-          customer: invoice.customer,
-          vehicle: invoice.vehicle,
-          items: itemsToSave,
-          totals: {
-            subTotal: calculatedTotals.subTotal,
-            totalDiscount: calculatedTotals.totalDiscount,
-            totalTax: calculatedTotals.totalTax,
-            grandTotal: calculatedTotals.grandTotal,
-            roundOff: calculatedTotals.roundOff,
-          },
-          amountPaid: parseNum(invoice.amountPaid),
-          balanceDue: calculatedTotals.balanceDue,
-          amountType: invoice.amountType,
-        },
+        data: payload,
       });
 
-      toast.success("Invoice updated successfully");
+      toast.success("Invoice Updated Successfully!");
       setIsEditing(false);
     } catch (error) {
-      toast.error("Failed to save invoice");
+      toast.error("Failed to Update Invoice", {
+        description: error.response?.data?.message || "Something went wrong.",
+      });
       console.error(error);
     }
   };
@@ -320,11 +321,10 @@ const InvoiceId = () => {
 
   const getStatusBadge = (status) => {
     const map = {
-      draft: "bg-yellow-100 text-yellow-800 border-yellow-300",
+      pending: "bg-yellow-100 text-yellow-800 border-yellow-300",
       completed: "bg-green-100 text-green-800 border-green-300",
-      canceled: "bg-red-100 text-red-800 border-red-300",
     };
-    return map[status] || map.draft;
+    return map[status] || map.pending;
   };
 
   const invoiceDateFormatted = new Date(invoice.invoiceDate).toLocaleDateString(
@@ -361,31 +361,12 @@ const InvoiceId = () => {
         <div className="flex gap-2 flex-wrap">
           {!isEditing ? (
             <>
-              {invoice.invoiceStatus !== "canceled" && (
-                <Button
-                  onClick={() => setIsEditing(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Edit size={16} className="mr-2" /> Edit
-                </Button>
-              )}
-
-              {invoice.invoiceStatus !== "canceled" && (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    updateInvoice
-                      .mutateAsync({
-                        id: invoice._id,
-                        data: { invoiceStatus: "canceled" },
-                      })
-                      .then(() => toast.success("Invoice canceled"))
-                  }
-                  className="border-red-300 text-red-600 hover:bg-red-50"
-                >
-                  <X size={16} className="mr-2" /> Cancel Invoice
-                </Button>
-              )}
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Edit size={16} className="mr-2" /> Edit
+              </Button>
 
               <Button
                 variant="destructive"
@@ -417,9 +398,9 @@ const InvoiceId = () => {
       {/* STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-lg">
-          <p className="text-blue-100">Grand Total</p>
+          <p className="text-blue-100">Total Amount</p>
           <h1 className="text-3xl font-bold mt-1">
-            ₹{grandTotal.toLocaleString("en-IN")}
+            ₹{totalAmount.toLocaleString("en-IN")}
           </h1>
         </div>
 
@@ -431,26 +412,30 @@ const InvoiceId = () => {
               value={invoice.amountPaid || ""}
               onChange={(e) => {
                 const value = e.target.value.replace(/[^\d.]/g, "");
-                const numValue = parseNum(value);
-
-                if (numValue > grandTotal) {
-                  toast.error("Amount paid cannot exceed grand total");
-                  setInvoiceState({
-                    ...invoice,
-                    amountPaid: grandTotal,
-                  });
-                } else {
-                  setInvoiceState({
-                    ...invoice,
-                    amountPaid: value,
-                  });
+                setInvoiceState({
+                  ...invoice,
+                  amountPaid: value,
+                });
+              }}
+              onBlur={() => {
+                const paid = Number(invoice.amountPaid);
+                if (!invoice.amountPaid || isNaN(paid)) {
+                  setInvoiceState({ ...invoice, amountPaid: "0" });
+                  return;
+                }
+                if (paid > totalAmount) {
+                  setInvoiceState({ ...invoice, amountPaid: String(totalAmount) });
+                  toast.info("Amount paid cannot exceed total. Adjusted to total.");
+                }
+                if (paid < 0) {
+                  setInvoiceState({ ...invoice, amountPaid: "0" });
                 }
               }}
               className="w-full mt-2 text-black font-bold px-3 py-2 rounded"
             />
           ) : (
             <h1 className="text-3xl font-bold mt-1">
-              ₹{parseNum(invoice.amountPaid).toLocaleString("en-IN")}
+              ₹{amountPaid.toLocaleString("en-IN")}
             </h1>
           )}
         </div>
@@ -479,7 +464,7 @@ const InvoiceId = () => {
             <label className="block text-slate-600 mb-2 font-medium">Invoice No</label>
             <input
               readOnly
-              className="w-full border border-slate-300 bg-slate-50 px-3 py-2 rounded-md"
+              className="w-full border border-slate-300 bg-slate-50 px-3 py-2 rounded-md font-mono"
               value={invoice.invoiceNumber || ""}
             />
           </div>
@@ -561,7 +546,7 @@ const InvoiceId = () => {
       </div>
 
       {/* VEHICLE DETAILS - Show if job-card */}
-      {invoice.invoiceType === "job-card" && invoice.vehicle && (
+      {invoice.invoiceType === "job-card" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-6 mb-6">
           <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
             <Package className="text-green-600" size={20} />
@@ -709,7 +694,7 @@ const InvoiceId = () => {
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/3 -translate-y-1/2  text-slate-400" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input
               placeholder="Search products by name or part number..."
               className="pl-10 mb-3"
@@ -717,8 +702,8 @@ const InvoiceId = () => {
               onChange={(e) => setSearch(e.target.value)}
             />
             {searchLoading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                Searching...
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
               </div>
             )}
           </div>
@@ -734,7 +719,7 @@ const InvoiceId = () => {
                   <p className="font-semibold text-slate-800">{product.partName}</p>
                   <p className="text-sm text-slate-600">Part No: {product.partNo}</p>
                   <p className="text-sm text-blue-600 font-bold">
-                    ₹{parseNum(product.revisedMRP).toLocaleString("en-IN")} | GST: {parseNum(product.CGSTCode) + parseNum(product.SGSTCode)}%
+                    ₹{parseNum(product.revisedMRP).toLocaleString("en-IN")} | GST: {parseNum(product.IGSTCode)}%
                   </p>
                 </div>
               ))}
@@ -767,23 +752,29 @@ const InvoiceId = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>HSN</TableHead>
                 <TableHead>Qty</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Discount</TableHead>
+                <TableHead>Rate (excl. GST)</TableHead>
                 <TableHead>GST %</TableHead>
-                <TableHead>Tax</TableHead>
-                <TableHead>Total</TableHead>
+                <TableHead>MRP</TableHead>
                 {isEditing && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {invoice.items.map((item, i) => {
-                const gstRate = parseNum(item.CGSTCode) + parseNum(item.SGSTCode);
-                
-                return (
+              {invoice.items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={isEditing ? 10 : 9} className="text-center py-12">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <FileText className="w-16 h-16 mb-3 opacity-50" />
+                      <p className="text-lg font-medium">No items added yet</p>
+                      <p className="text-sm">Search and add products to the invoice</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                invoice.items.map((item, i) => (
                   <TableRow key={i}>
                     <TableCell className="font-medium">{i + 1}</TableCell>
-                    <TableCell>{item.partNo}</TableCell>
+                    <TableCell className="text-slate-600">{item.partNo}</TableCell>
                     <TableCell className="font-semibold">{item.partName}</TableCell>
                     <TableCell>
                       {isEditing ? (
@@ -793,7 +784,8 @@ const InvoiceId = () => {
                           onChange={(e) =>
                             updateItemField(i, "tariff", e.target.value)
                           }
-                          className="w-24"
+                          className="min-w-[90px]"
+                          placeholder="HSN"
                         />
                       ) : (
                         item.tariff || "-"
@@ -805,157 +797,92 @@ const InvoiceId = () => {
                           type="text"
                           value={item.quantity || ""}
                           onChange={(e) => {
-                            const value = e.target.value.replace(/[^\d.]/g, "");
+                            const value = e.target.value.replace(/[^\d]/g, "");
                             updateItemField(i, "quantity", value);
                           }}
+                          onBlur={(e) => {
+                            if (!e.target.value || Number(e.target.value) < 1) {
+                              updateItemField(i, "quantity", 1);
+                            }
+                          }}
+                          className="min-w-[70px]"
                           placeholder="1"
-                          className="w-20"
                         />
                       ) : (
                         item.quantity
                       )}
                     </TableCell>
-                    <TableCell>
-                      {isEditing ? (
-                        <Input
-                          type="text"
-                          value={item.revisedMRP || ""}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/[^\d.]/g, "");
-                            updateItemField(i, "revisedMRP", value);
-                          }}
-                          placeholder="0"
-                          className="w-24"
-                        />
-                      ) : (
-                        `₹${parseNum(item.revisedMRP).toLocaleString("en-IN")}`
-                      )}
+                    <TableCell className="font-medium text-blue-600">
+                      ₹{getRate(item).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </TableCell>
                     <TableCell>
                       {isEditing ? (
                         <Input
                           type="text"
-                          value={item.discount || ""}
-                          placeholder="0"
+                          value={item.gst || ""}
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^\d.]/g, "");
-                            updateItemField(i, "discount", value);
+                            updateItemField(i, "gst", value);
                           }}
-                          className="w-24"
-                        />
-                      ) : (
-                        parseNum(item.discount) > 0 ? `₹${parseNum(item.discount).toLocaleString("en-IN")}` : "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isEditing ? (
-                        <Input
-                          type="text"
-                          value={gstRate || ""}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/[^\d.]/g, "");
-                            const halfRate = parseNum(value) / 2;
-                            updateItemField(i, "CGSTCode", halfRate.toString());
-                            updateItemField(i, "SGSTCode", halfRate.toString());
+                          onBlur={(e) => {
+                            if (!e.target.value) updateItemField(i, "gst", 0);
                           }}
+                          className="min-w-[80px]"
                           placeholder="0"
-                          className="w-20"
                         />
                       ) : (
-                        `${gstRate}%`
+                        `${item.gst}%`
                       )}
-                    </TableCell>
-                    <TableCell className="text-orange-600 font-semibold">
-                      ₹{parseNum(item.taxAmount).toLocaleString("en-IN")}
                     </TableCell>
                     <TableCell className="font-bold text-green-600">
-                      ₹{parseNum(item.finalAmount).toLocaleString("en-IN")}
+                      {isEditing ? (
+                        <Input
+                          type="text"
+                          value={item.MRP || ""}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d.]/g, "");
+                            updateItemField(i, "MRP", value);
+                          }}
+                          onBlur={(e) => {
+                            if (!e.target.value) updateItemField(i, "MRP", 0);
+                          }}
+                          className="min-w-[80px]"
+                          placeholder="0"
+                        />
+                      ) : (
+                        `₹${parseNum(item.MRP).toLocaleString("en-IN")}`
+                      )}
                     </TableCell>
+                    
 
                     {isEditing && (
                       <TableCell>
                         <button
                           onClick={() => deleteItem(i)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove item"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </TableCell>
                     )}
                   </TableRow>
-                );
-              })}
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
       </div>
 
-      {/* TOTALS SUMMARY */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-900 rounded-xl shadow-xl p-6 text-white mb-6">
-        <h3 className="text-xl font-bold mb-4">Invoice Summary</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div>
-            <p className="text-slate-300 text-sm">Sub Total</p>
-            <h1 className="text-xl font-bold mt-1">
-              ₹{subTotal.toLocaleString("en-IN")}
-            </h1>
-          </div>
-
-          {totalDiscount > 0 && (
-            <div>
-              <p className="text-slate-300 text-sm">Total Discount</p>
-              <h1 className="text-xl font-bold text-green-400 mt-1">
-                -₹{totalDiscount.toLocaleString("en-IN")}
-              </h1>
-            </div>
-          )}
-
-          <div>
-            <p className="text-slate-300 text-sm">Total Tax</p>
-            <h1 className="text-xl font-bold text-orange-400 mt-1">
-              ₹{totalTax.toLocaleString("en-IN")}
-            </h1>
-          </div>
-
-          <div>
-            <p className="text-slate-300 text-sm">Round Off</p>
-            <h1 className="text-xl font-bold mt-1">
-              ₹{roundOff.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </h1>
-          </div>
-
-          <div>
-            <p className="text-slate-300 text-sm">Amount Paid</p>
-            <h1 className="text-xl font-bold text-green-300 mt-1">
-              ₹{parseNum(invoice.amountPaid).toLocaleString("en-IN")}
-            </h1>
-          </div>
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-slate-700 flex justify-between items-center">
-          <div>
-            <p className="text-slate-300 text-sm">Balance Due</p>
-            <h1 className="text-2xl font-bold text-yellow-400 mt-1">
-              ₹{balanceDue.toLocaleString("en-IN")}
-            </h1>
-          </div>
-          
-          <div className="text-right">
-            <p className="text-slate-300 text-sm">Grand Total</p>
-            <h1 className="text-3xl font-bold text-emerald-400 mt-1">
-              ₹{grandTotal.toLocaleString("en-IN")}
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      {/* PAYMENT TYPE */}
+      {/* PAYMENT DETAILS */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-6 mb-6">
-        <h3 className="font-bold text-lg mb-4">Payment Type</h3>
+        <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+          <div className="w-1.5 h-6 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full"></div>
+          Payment Details
+        </h3>
         <div className="flex gap-4">
           <button
             onClick={() => {
@@ -987,6 +914,33 @@ const InvoiceId = () => {
           >
             Credit
           </button>
+        </div>
+      </div>
+
+      {/* TOTAL SUMMARY */}
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6 text-white mb-6">
+        <h2 className="text-2xl font-bold mb-6">Invoice Summary</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <p className="text-slate-300 text-sm">Total Amount</p>
+            <h1 className="text-3xl font-bold mt-1">
+              ₹{totalAmount.toLocaleString("en-IN")}
+            </h1>
+          </div>
+
+          <div>
+            <p className="text-slate-300 text-sm">Amount Paid</p>
+            <h1 className="text-3xl font-bold text-green-300 mt-1">
+              ₹{amountPaid.toLocaleString("en-IN")}
+            </h1>
+          </div>
+
+          <div className="md:col-span-2 pt-4 border-t border-slate-700">
+            <p className="text-slate-300 text-sm">Balance Due</p>
+            <h1 className="text-3xl font-bold text-yellow-400 mt-1">
+              ₹{balanceDue.toLocaleString("en-IN")}
+            </h1>
+          </div>
         </div>
       </div>
 

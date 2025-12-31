@@ -52,19 +52,6 @@ export const useDeleteInvoice = () => {
   });
 };
 
-export const useCancelInvoice = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id) => {
-      return api.patch(`/invoice/${id}/cancel`);
-    },
-    onSuccess: (data, id) => {
-      queryClient.invalidateQueries(["invoice", id]);
-      queryClient.invalidateQueries(["invoices"]);
-    },
-  });
-};
 
 export const useInvoices = ({ page, limit, type, status, search, customerName }) => {
   return useQuery({

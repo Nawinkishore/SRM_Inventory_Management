@@ -1,8 +1,8 @@
 import Invoice from "../models/invoice.model.js";
 
-// ========================
-// Get next invoice number
-// ========================
+// ============================
+// Generate Next Invoice Number
+// ============================
 export const getNextInvoiceNumber = async (req, res) => {
   try {
     const lastInvoice = await Invoice.findOne({
@@ -13,15 +13,12 @@ export const getNextInvoiceNumber = async (req, res) => {
 
     let nextNumber = "INV-0001";
 
-    if (lastInvoice && lastInvoice.invoiceNumber) {
+    if (lastInvoice?.invoiceNumber) {
       const lastNumber = parseInt(lastInvoice.invoiceNumber.split("-")[1], 10);
       nextNumber = `INV-${String(lastNumber + 1).padStart(4, "0")}`;
     }
 
-    res.status(200).json({
-      success: true,
-      invoiceNumber: nextNumber,
-    });
+    res.status(200).json({ success: true, invoiceNumber: nextNumber });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -31,54 +28,53 @@ export const getNextInvoiceNumber = async (req, res) => {
   }
 };
 
-// ========================
-// Create invoice
-// ========================
+// ============================
+// Create Invoice
+// ============================
 export const createInvoice = async (req, res) => {
   try {
-    const invoiceData = req.body;
+    const data = req.body;
 
-    // Validation
-    if (!invoiceData.invoiceNumber || !invoiceData.customer?.name || !invoiceData.customer?.phone) {
+    // -------- Validation --------
+    if (!data.invoiceNumber || !data.customer?.name || !data.customer?.phone) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: invoiceNumber, customer name, or phone",
+        message: "Missing invoiceNumber, customer name, or phone",
       });
     }
 
-    if (invoiceData.customer.phone.length !== 10) {
+    if (String(data.customer.phone).length !== 10) {
       return res.status(400).json({
         success: false,
         message: "Phone number must be exactly 10 digits",
       });
     }
 
-    if (!invoiceData.items || invoiceData.items.length === 0) {
+    if (!data.items?.length) {
       return res.status(400).json({
         success: false,
         message: "Invoice must contain at least one item",
       });
     }
 
-    if (Number(invoiceData.amountPaid) > Number(invoiceData.totals.grandTotal)) {
-      return res.status(400).json({
-        success: false,
-        message: "Amount paid cannot exceed grand total",
-      });
-    }
+    // -------- Compute totals --------
+    const totalAmount = data.items.reduce((sum, item) => {
+      return sum + Number(item.MRP || 0) * Number(item.quantity || 1);
+    }, 0);
 
-    // Calculate balance due
-    const grandTotal = Number(invoiceData.totals?.grandTotal || 0);
-    const amountPaid = Number(invoiceData.amountPaid || 0);
-    invoiceData.balanceDue = Math.max(0, grandTotal - amountPaid);
+    const amountPaid = Number(data.amountPaid || 0);
+    const balanceDue = Math.max(totalAmount - amountPaid, 0);
 
-    // Set status based on balance (pre-save hook will also do this)
-    if (invoiceData.invoiceStatus !== "canceled") {
-      invoiceData.invoiceStatus = invoiceData.balanceDue <= 0 ? "completed" : "draft";
-    }
+    const invoiceStatus = balanceDue === 0 ? "completed" : "pending";
 
-    // Create invoice
-    const invoice = await Invoice.create(invoiceData);
+    // -------- Create invoice --------
+    const invoice = await Invoice.create({
+      ...data,
+      totalAmount,
+      amountPaid,
+      balanceDue,
+      invoiceStatus,
+    });
 
     res.status(201).json({
       success: true,
@@ -88,7 +84,6 @@ export const createInvoice = async (req, res) => {
   } catch (error) {
     console.error("Create Invoice Error:", error);
 
-    // Handle duplicate invoice number
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -104,29 +99,18 @@ export const createInvoice = async (req, res) => {
   }
 };
 
-// ========================
-// Get all invoices
-// ========================
+// ============================
+// Get All Invoices
+// ============================
 export const getInvoices = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      invoiceType,
-      q,
-      customerName,
-      invoiceStatus,
-    } = req.query;
+    const { page = 1, limit = 10, invoiceType, invoiceStatus, q } = req.query;
 
     const query = {};
 
-    if (invoiceType && invoiceType !== "all") {
-      query.invoiceType = invoiceType;
-    }
-
-    if (invoiceStatus && invoiceStatus !== "all") {
+    if (invoiceType && invoiceType !== "all") query.invoiceType = invoiceType;
+    if (invoiceStatus && invoiceStatus !== "all")
       query.invoiceStatus = invoiceStatus;
-    }
 
     if (q) {
       query.$or = [
@@ -138,26 +122,21 @@ export const getInvoices = async (req, res) => {
       ];
     }
 
-    if (customerName) {
-      query["customer.name"] = { $regex: customerName, $options: "i" };
-    }
-
     const skip = (page - 1) * limit;
 
     const invoices = await Invoice.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit, 10));
+      .limit(Number(limit));
 
     const total = await Invoice.countDocuments(query);
 
-    // Changed response structure
     res.status(200).json({
       success: true,
       data: invoices,
       meta: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page: Number(page),
+        limit: Number(limit),
         totalDocs: total,
         totalPages: Math.ceil(total / limit),
       },
@@ -171,88 +150,71 @@ export const getInvoices = async (req, res) => {
   }
 };
 
-// ========================
-// Get single invoice
-// ========================
+// ============================
+// Get Single Invoice
+// ============================
 export const getInvoiceById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const invoice = await Invoice.findById(req.params.id);
 
-    const invoice = await Invoice.findById(id);
+    if (!invoice)
+      return res.status(404).json({ success: false, message: "Not found" });
 
-    if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        message: "Invoice not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: invoice,
-    });
+    res.status(200).json({ success: true, data: invoice });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Failed to fetch invoice",
+      message: "Error fetching invoice",
       error: error.message,
     });
   }
 };
 
-// ========================
-// Update invoice
-// ========================
+// ============================
+// Update Invoice
+// ============================
 export const updateInvoice = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const update = req.body;
 
-    // Prevent updating invoice number
-    delete updateData.invoiceNumber;
+    // never allow invoice number change
+    delete update.invoiceNumber;
 
-    // Calculate balance due if amounts are being updated
-    if (updateData.amountPaid !== undefined || updateData.totals?.grandTotal !== undefined) {
-      const currentInvoice = await Invoice.findById(id);
-      
-      if (!currentInvoice) {
-        return res.status(404).json({
-          success: false,
-          message: "Invoice not found",
-        });
-      }
+    const invoice = await Invoice.findById(id);
+    if (!invoice)
+      return res.status(404).json({ success: false, message: "Not found" });
 
-      const grandTotal = updateData.totals?.grandTotal ?? currentInvoice.totals?.grandTotal ?? 0;
-      const amountPaid = updateData.amountPaid ?? currentInvoice.amountPaid ?? 0;
-      
-      updateData.balanceDue = Math.max(0, Number(grandTotal) - Number(amountPaid));
-      
-      // Update status based on balance (only if not canceled)
-      if (updateData.invoiceStatus !== "canceled" && currentInvoice.invoiceStatus !== "canceled") {
-        updateData.invoiceStatus = updateData.balanceDue <= 0 ? "completed" : "draft";
-      }
-    }
+    // recompute totals
+    const totalAmount =
+      update.totalAmount !== undefined
+        ? Number(update.totalAmount)
+        : invoice.totalAmount;
 
-    const invoice = await Invoice.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
+    const amountPaid =
+      update.amountPaid !== undefined
+        ? Number(update.amountPaid)
+        : invoice.amountPaid;
 
-    if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        message: "Invoice not found",
-      });
-    }
+    const balanceDue = Math.max(totalAmount - amountPaid, 0);
+    const invoiceStatus = balanceDue === 0 ? "completed" : "pending";
+
+    update.totalAmount = totalAmount;
+    update.amountPaid = amountPaid;
+    update.balanceDue = balanceDue;
+    update.invoiceStatus = invoiceStatus;
+
+    const updated = await Invoice.findByIdAndUpdate(id, update, {
+      new: true,
+      runValidators: true,
+    });
 
     res.status(200).json({
       success: true,
       message: "Invoice updated successfully",
-      data: invoice,
+      data: updated,
     });
   } catch (error) {
-    console.error("Update Invoice Error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to update invoice",
@@ -261,55 +223,15 @@ export const updateInvoice = async (req, res) => {
   }
 };
 
-// ========================
-// Cancel invoice
-// ========================
-export const cancelInvoice = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const invoice = await Invoice.findByIdAndUpdate(
-      id,
-      { invoiceStatus: "canceled" },
-      { new: true }
-    );
-
-    if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        message: "Invoice not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Invoice canceled successfully",
-      data: invoice,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to cancel invoice",
-      error: error.message,
-    });
-  }
-};
-
-// ========================
-// Delete invoice
-// ========================
+// ============================
+// Delete Invoice
+// ============================
 export const deleteInvoice = async (req, res) => {
   try {
-    const { id } = req.params;
+    const deleted = await Invoice.findByIdAndDelete(req.params.id);
 
-    const invoice = await Invoice.findByIdAndDelete(id);
-
-    if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        message: "Invoice not found",
-      });
-    }
+    if (!deleted)
+      return res.status(404).json({ success: false, message: "Not found" });
 
     res.status(200).json({
       success: true,

@@ -1,9 +1,50 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { useInvoices } from "@/features/invoice/useInvoice";
 import { useStockSummary, useItems } from "@/features/items/useItems";
+
+// Table Components
+const Table = ({ children, ...props }) => (
+  <div className="w-full overflow-auto">
+    <table className="w-full caption-bottom text-sm" {...props}>
+      {children}
+    </table>
+  </div>
+);
+
+const TableHeader = ({ children, ...props }) => (
+  <thead className="[&_tr]:border-b" {...props}>
+    {children}
+  </thead>
+);
+
+const TableBody = ({ children, ...props }) => (
+  <tbody className="[&_tr:last-child]:border-0" {...props}>
+    {children}
+  </tbody>
+);
+
+const TableHead = ({ children, ...props }) => (
+  <th
+    className="h-12 px-4 text-left align-middle font-medium text-slate-500"
+    {...props}
+  >
+    {children}
+  </th>
+);
+
+const TableRow = ({ children, ...props }) => (
+  <tr className="border-b transition-colors hover:bg-slate-50/50" {...props}>
+    {children}
+  </tr>
+);
+
+const TableCell = ({ children, ...props }) => (
+  <td className="p-4 align-middle" {...props}>
+    {children}
+  </td>
+);
 
 const Home = () => {
   // 🔹 STOCK SUMMARY
@@ -12,7 +53,7 @@ const Home = () => {
   // 🔹 FETCH ALL INVOICES FOR ACCURATE STATS (high limit)
   const { data: allInvoicesData, isLoading: statsLoading } = useInvoices({
     page: 1,
-    limit: 1000, // Fetch all invoices for accurate statistics
+    limit: 1000, 
     type: "all",
     status: "all",
     search: "",
@@ -49,17 +90,17 @@ const Home = () => {
     (i) => i.invoiceStatus === "completed"
   ).length;
 
-  // Calculate OVERDUE invoices - invoices with balance > 0 and not canceled
-  const overdueInvoices = allInvoices.filter(
-    (i) => 
-      i.invoiceStatus !== "canceled" && 
-      i.invoiceStatus !== "completed" &&
-      Number(i.balanceDue || 0) > 0
+  // Calculate pending invoices - invoices with status "pending"
+  const pendingInvoices = allInvoices.filter(
+    (i) => i.invoiceStatus === "pending"
   ).length;
 
-  // Calculate draft invoices (balance > 0 but not formally overdue)
-  const draftInvoices = allInvoices.filter(
-    (i) => i.invoiceStatus === "draft" && Number(i.balanceDue || 0) > 0
+  // Note: With the new model, there are only "completed" and "pending" statuses
+  // Overdue is determined by pending status with balance due > 0
+  const overdueInvoices = allInvoices.filter(
+    (i) => 
+      i.invoiceStatus === "pending" && 
+      Number(i.balanceDue || 0) > 0
   ).length;
 
   // Low stock items (stock <= 3)
@@ -70,12 +111,12 @@ const Home = () => {
   // Revenue calculations with null safety - USING ALL INVOICES
   const totalRevenue = allInvoices
     .filter((i) => i.invoiceStatus === "completed")
-    .reduce((sum, inv) => sum + (Number(inv.totals?.grandTotal) || Number(inv.grandTotal) || 0), 0);
+    .reduce((sum, inv) => sum + (Number(inv.totalAmount) || 0), 0);
 
-  // Total pending = all invoices with balance due (including overdue)
+  // Total pending = all invoices with balance due
   const totalPending = allInvoices
     .filter((i) => 
-      i.invoiceStatus !== "canceled" && 
+      i.invoiceStatus === "pending" && 
       Number(i.balanceDue || 0) > 0
     )
     .reduce((sum, inv) => sum + (Number(inv.balanceDue) || 0), 0);
@@ -89,11 +130,15 @@ const Home = () => {
     (i) => i.invoiceType?.toLowerCase() === "job-card"
   ).length;
 
+  const advanceInvoices = allInvoices.filter(
+    (i) => i.invoiceType?.toLowerCase() === "advance"
+  ).length;
+
   const totalItems = itemsData?.meta?.totalDocs ?? 0;
 
   // Calculate stats safely
   const avgInvoiceValue = totalInvoicesCount > 0 
-    ? Math.round(allInvoices.reduce((sum, inv) => sum + (Number(inv.totals?.grandTotal) || Number(inv.grandTotal) || 0), 0) / totalInvoicesCount)
+    ? Math.round(allInvoices.reduce((sum, inv) => sum + (Number(inv.totalAmount) || 0), 0) / totalInvoicesCount)
     : 0;
 
   const collectionRate = (totalRevenue + totalPending) > 0
@@ -213,11 +258,11 @@ const Home = () => {
 
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-600">Draft</CardTitle>
+            <CardTitle className="text-xs font-medium text-slate-600">Pending</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold text-yellow-600">
-              {statsLoading ? "..." : draftInvoices}
+              {statsLoading ? "..." : pendingInvoices}
             </div>
           </CardContent>
         </Card>
@@ -274,13 +319,12 @@ const Home = () => {
                   )}
 
                   {!invoicesLoading && recentInvoices.slice(0, 8).map((inv) => {
-                    // Determine if invoice is overdue
-                    const isOverdue = inv.invoiceStatus !== "canceled" && 
-                                     inv.invoiceStatus !== "completed" && 
+                    // Determine display status - show "overdue" if pending with balance due
+                    const isOverdue = inv.invoiceStatus === "pending" && 
                                      Number(inv.balanceDue || 0) > 0;
                     
                     const displayStatus = isOverdue ? "overdue" : inv.invoiceStatus;
-                    const grandTotal = Number(inv.totals?.grandTotal) || Number(inv.grandTotal) || 0;
+                    const totalAmount = Number(inv.totalAmount) || 0;
 
                     return (
                       <TableRow key={inv._id} className="hover:bg-slate-50">
@@ -290,6 +334,7 @@ const Home = () => {
                           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                             inv.invoiceType?.toLowerCase() === "sales" ? "bg-blue-100 text-blue-700" : 
                             inv.invoiceType?.toLowerCase() === "job-card" ? "bg-purple-100 text-purple-700" :
+                            inv.invoiceType?.toLowerCase() === "advance" ? "bg-emerald-100 text-emerald-700" :
                             "bg-indigo-100 text-indigo-700"
                           }`}>
                             {inv.invoiceType}
@@ -302,8 +347,6 @@ const Home = () => {
                                 ? "bg-green-100 text-green-700"
                                 : displayStatus === "overdue"
                                 ? "bg-red-100 text-red-700"
-                                : displayStatus === "canceled"
-                                ? "bg-gray-100 text-gray-700"
                                 : "bg-yellow-100 text-yellow-700"
                             }`}
                           >
@@ -311,7 +354,7 @@ const Home = () => {
                           </span>
                         </TableCell>
 
-                        <TableCell className="font-semibold">₹{grandTotal.toLocaleString('en-IN')}</TableCell>
+                        <TableCell className="font-semibold">₹{totalAmount.toLocaleString('en-IN')}</TableCell>
                         
                         <TableCell className={Number(inv.balanceDue) > 0 ? "text-orange-600 font-medium" : "text-green-600"}>
                           ₹{Number(inv.balanceDue || 0).toLocaleString('en-IN')}
@@ -438,18 +481,16 @@ const Home = () => {
                 </div>
               ) : (
                 recentInvoices.slice(0, 6).map((inv) => {
-                  const isOverdue = inv.invoiceStatus !== "canceled" && 
-                                   inv.invoiceStatus !== "completed" && 
+                  const isOverdue = inv.invoiceStatus === "pending" && 
                                    Number(inv.balanceDue || 0) > 0;
                   const displayStatus = isOverdue ? "overdue" : inv.invoiceStatus;
-                  const grandTotal = Number(inv.totals?.grandTotal) || Number(inv.grandTotal) || 0;
+                  const totalAmount = Number(inv.totalAmount) || 0;
 
                   return (
                     <div key={inv._id} className="flex items-start gap-3 border-b pb-3 last:border-0 hover:bg-slate-50 p-2 rounded transition-colors">
                       <div className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${
                         displayStatus === "completed" ? "bg-green-500" :
                         displayStatus === "overdue" ? "bg-red-500" : 
-                        displayStatus === "canceled" ? "bg-gray-500" :
                         "bg-yellow-500"
                       }`}></div>
                       <div className="flex-1 min-w-0">
@@ -458,6 +499,7 @@ const Home = () => {
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             inv.invoiceType?.toLowerCase() === "sales" ? "bg-blue-100 text-blue-700" : 
                             inv.invoiceType?.toLowerCase() === "job-card" ? "bg-purple-100 text-purple-700" :
+                            inv.invoiceType?.toLowerCase() === "advance" ? "bg-emerald-100 text-emerald-700" :
                             "bg-indigo-100 text-indigo-700"
                           }`}>
                             {inv.invoiceType}
@@ -465,7 +507,6 @@ const Home = () => {
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             displayStatus === "completed" ? "bg-green-100 text-green-700" :
                             displayStatus === "overdue" ? "bg-red-100 text-red-700" :
-                            displayStatus === "canceled" ? "bg-gray-100 text-gray-700" :
                             "bg-yellow-100 text-yellow-700"
                           }`}>
                             {displayStatus}
@@ -475,7 +516,7 @@ const Home = () => {
                           {inv.customer?.name || "Unknown Customer"}
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
-                          ₹{grandTotal.toLocaleString('en-IN')} • {
+                          ₹{totalAmount.toLocaleString('en-IN')} • {
                             inv.invoiceDate || inv.createdAt
                               ? new Date(inv.invoiceDate || inv.createdAt).toLocaleDateString('en-IN')
                               : "-"
