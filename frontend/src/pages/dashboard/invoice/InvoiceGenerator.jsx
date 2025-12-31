@@ -278,7 +278,7 @@ const InvoiceGenerator = () => {
                 type="text"
                 value={invoiceNumber || "Loading..."}
                 disabled
-                className="bg-gradient-to-r from-blue-50 to-indigo-50 font-mono text-lg font-bold border-blue-200"
+                className="bg-linear-to-r from-blue-50 to-indigo-50 font-mono text-lg font-bold border-blue-200"
               />
             </div>
 
@@ -319,7 +319,7 @@ const InvoiceGenerator = () => {
         {/* Customer Details */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
           <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <div className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
+            <div className="w-1.5 h-6 bg-linear-to-b from-blue-500 to-indigo-600 rounded-full"></div>
             Customer Details
           </h2>
 
@@ -415,7 +415,7 @@ const InvoiceGenerator = () => {
                 </label>
                 <Input
                   type="text"
-                  placeholder="e.g., Honda Activa"
+                  placeholder="e.g., R15 V3"
                   value={vehicleDetails.model}
                   onChange={(e) =>
                     setVehicleDetails({

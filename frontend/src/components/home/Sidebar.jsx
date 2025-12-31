@@ -4,6 +4,7 @@ import {
   FileText,
   Container,
   ShoppingCart,
+  EqualApproximately 
  
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
@@ -31,6 +32,12 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       icon: ShoppingCart,
       path: "/dashboard/stocks",
     },
+    {
+      id: "quotation",
+      label: "Quotation",
+      icon: EqualApproximately,
+      path: "/dashboard/quotation",
+    }
     // {id :'excel',label:'Import Excel', icon: Sheet, path:'/dashboard/excel' },
   ];
 

@@ -28,14 +28,10 @@ export const getNextInvoiceNumber = async (req, res) => {
   }
 };
 
-// ============================
-// Create Invoice
-// ============================
 export const createInvoice = async (req, res) => {
   try {
     const data = req.body;
 
-    // -------- Validation --------
     if (!data.invoiceNumber || !data.customer?.name || !data.customer?.phone) {
       return res.status(400).json({
         success: false,

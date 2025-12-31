@@ -12,6 +12,9 @@ import { Toaster } from "sonner";
 import { SignedIn, SignedOut, SignIn, SignUp } from "@clerk/clerk-react";
 import AddItem from "./pages/dashboard/items/AddItem";
 import EditItem from "./pages/dashboard/items/EditItem";
+import Quotation from "./pages/dashboard/quotation/Quotation";
+import AddQuotation from "./pages/dashboard/quotation/AddQuotation";
+import ViewQuotation from "./pages/dashboard/quotation/ViewQuotation";
 
 function App() {
   return (
@@ -21,21 +24,21 @@ function App() {
       {/* Routes for Signed Out Users */}
       <SignedOut>
         <Routes>
-          <Route 
-            path="/sign-in/*" 
+          <Route
+            path="/sign-in/*"
             element={
               <div className="flex items-center justify-center h-screen">
                 <SignIn routing="path" path="/sign-in" />
               </div>
-            } 
+            }
           />
-          <Route 
-            path="/sign-up/*" 
+          <Route
+            path="/sign-up/*"
             element={
               <div className="flex items-center justify-center h-screen">
                 <SignUp routing="path" path="/sign-up" />
               </div>
-            } 
+            }
           />
           <Route path="*" element={<Navigate to="/sign-in" replace />} />
         </Routes>
@@ -46,12 +49,17 @@ function App() {
         <Routes>
           {/* Redirect root to dashboard */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          
-          {/* Redirect auth pages to dashboard if already signed in */}
-          <Route path="/sign-in/*" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/sign-up/*" element={<Navigate to="/dashboard" replace />} />
 
-          {/* Dashboard Routes */}
+          {/* Redirect auth pages to dashboard if already signed in */}
+          <Route
+            path="/sign-in/*"
+            element={<Navigate to="/dashboard" replace />}
+          />
+          <Route
+            path="/sign-up/*"
+            element={<Navigate to="/dashboard" replace />}
+          />
+
           <Route path="/dashboard" element={<DashBoard />}>
             <Route index element={<Home />} />
             <Route path="invoice" element={<InvoiceGenerator />} />
@@ -59,9 +67,10 @@ function App() {
             <Route path="invoice/:id" element={<InvoiceId />} />
             <Route path="stocks" element={<Stock />} />
             <Route path="stocks/add" element={<AddItem />} />
-            <Route path="/dashboard/stocks/edit/:id" element={<EditItem />} />
-
-       
+            <Route path="stocks/edit/:id" element={<EditItem />} />
+            <Route path="quotation" element={<Quotation />} />
+            <Route path="quotation/add" element={<AddQuotation />} />
+            <Route path="quotation/view/:id" element={<ViewQuotation />} />
           </Route>
         </Routes>
       </SignedIn>
