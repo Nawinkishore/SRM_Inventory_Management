@@ -110,27 +110,27 @@ const styles = StyleSheet.create({
   colNum: { width: "5%" },
   colItem: { width: "28%" },
   colHSN: { width: "10%" },
-  colMRP: { width: "12%", textAlign: "right" },
-  colGST: { width: "10%", textAlign: "right" },
-  colGSTAmt: { width: "13%", textAlign: "right" },
+  colRate: { width: "12%", textAlign: "right" },
+  colGST: { width: "8%", textAlign: "right" },
   colQty: { width: "7%", textAlign: "center" },
+  colMRP: { width: "15%", textAlign: "right" },
   colTotal: { width: "15%", textAlign: "right", paddingRight: 2 },
 
   totalsContainer: { width: "45%", alignSelf: "flex-end", marginTop: 3 },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 1.5,
+    paddingVertical: 2,
   },
   grandTotalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     borderTop: "1pt solid #000",
-    paddingTop: 2,
+    paddingTop: 3,
     marginTop: 2,
   },
-  grandTotalLabel: { fontSize: 7.5, fontWeight: "bold" },
-  grandTotalValue: { fontSize: 7.5, fontWeight: "bold" },
+  grandTotalLabel: { fontSize: 8, fontWeight: "bold" },
+  grandTotalValue: { fontSize: 8, fontWeight: "bold" },
 
   footer: {
     flexDirection: "row",
@@ -181,34 +181,13 @@ export default function InvoicePDF({ invoice }) {
     invoiceType === "job_card" || invoiceType === "job-card";
 
   // ======== TOTAL CALCULATIONS =========
-  let subTotal = 0;
-  let totalGST = 0;
+  let totalMRP = 0;
 
   items.forEach((item) => {
     const qty = Number(item.quantity) || 0;
-    const mrp = Number(item.revisedMRP) || 0;
-
-    const gstRate =
-      (Number(item.CGSTCode) || 0) +
-      (Number(item.SGSTCode) || 0);
-
-    const lineBase = mrp * qty;
-    const lineGST = (lineBase * gstRate) / 100;
-
-    subTotal += lineBase;
-    totalGST += lineGST;
+    const mrp = Number(item.MRP) || 0;
+    totalMRP += mrp * qty;
   });
-
-  const cgstAmount = totalGST / 2;
-  const sgstAmount = totalGST / 2;
-
-  const gstRate =
-    (Number(items[0]?.CGSTCode) || 0) +
-    (Number(items[0]?.SGSTCode) || 0);
-
-  const halfRate = gstRate / 2;
-
-  const grandTotal = subTotal + totalGST;
 
   return (
     <Document>
@@ -307,86 +286,58 @@ export default function InvoicePDF({ invoice }) {
               Item / Part No
             </Text>
             <Text style={[styles.headerCell, styles.colHSN]}>HSN/SAC</Text>
-            <Text style={[styles.headerCell, styles.colMRP]}>
-              Amount (MRP)
-            </Text>
+            <Text style={[styles.headerCell, styles.colRate]}>Rate</Text>
             <Text style={[styles.headerCell, styles.colGST]}>GST%</Text>
-            <Text style={[styles.headerCell, styles.colGSTAmt]}>
-              GST Amount
-            </Text>
             <Text style={[styles.headerCell, styles.colQty]}>Qty</Text>
-            <Text style={[styles.headerCell, styles.colTotal]}>Total</Text>
+            <Text style={[styles.headerCell, styles.colMRP]}>MRP</Text>
           </View>
 
           {items.map((item, i) => {
             const qty = Number(item.quantity) || 0;
-            const mrp = Number(item.revisedMRP) || 0;
-            const rate =
-              (Number(item.CGSTCode) || 0) +
-              (Number(item.SGSTCode) || 0);
-
-            const base = mrp * qty;
-            const gst = (base * rate) / 100;
-            const total = base + gst;
+            const rate = Number(item.rate) || 0;
+            const gst = Number(item.gst) || 0;
+            const mrp = Number(item.MRP) || 0;
+            const totalItemMRP = mrp * qty;
 
             return (
               <View key={i} style={styles.tableRow}>
                 <Text style={[styles.cell, styles.colNum]}>{i + 1}</Text>
 
                 <View style={styles.colItem}>
-                  <Text>{item.partName}</Text>
+                  <Text style={styles.cell}>{item.partName}</Text>
                   <Text style={{ fontSize: 6, color: "#555" }}>
-                    {item.partNo}
+                    {item.partNo || "--"}
                   </Text>
                 </View>
 
                 <Text style={[styles.cell, styles.colHSN]}>
-                  {item.hsnCode || item.tariff}
+                  {item.tariff || "--"}
                 </Text>
 
-                <Text style={[styles.cell, styles.colMRP]}>
-                  ₹{formatCurrency(base)}
+                <Text style={[styles.cell, styles.colRate]}>
+                  ₹{formatCurrency(rate)}
                 </Text>
 
                 <Text style={[styles.cell, styles.colGST]}>
-                  {rate}%
-                </Text>
-
-                <Text style={[styles.cell, styles.colGSTAmt]}>
-                  ₹{formatCurrency(gst)}
+                  {gst}%
                 </Text>
 
                 <Text style={[styles.cell, styles.colQty]}>{qty}</Text>
 
-                <Text style={[styles.cell, styles.colTotal]}>
-                  ₹{formatCurrency(total)}
+                <Text style={[styles.cell, styles.colMRP]}>
+                  ₹{formatCurrency(totalItemMRP)}
                 </Text>
               </View>
             );
           })}
         </View>
 
-        {/* TOTALS */}
+        {/* TOTALS - Only Total MRP */}
         <View style={styles.totalsContainer}>
-          <View style={styles.totalRow}>
-            <Text>Subtotal</Text>
-            <Text>₹{formatCurrency(subTotal)}</Text>
-          </View>
-
-          <View style={styles.totalRow}>
-            <Text>SGST @ {halfRate}%</Text>
-            <Text>₹{formatCurrency(sgstAmount)}</Text>
-          </View>
-
-          <View style={styles.totalRow}>
-            <Text>CGST @ {halfRate}%</Text>
-            <Text>₹{formatCurrency(cgstAmount)}</Text>
-          </View>
-
           <View style={styles.grandTotalRow}>
-            <Text style={styles.grandTotalLabel}>Total</Text>
+            <Text style={styles.grandTotalLabel}>Total MRP</Text>
             <Text style={styles.grandTotalValue}>
-              ₹{formatCurrency(grandTotal)}
+              ₹{formatCurrency(totalMRP)}
             </Text>
           </View>
         </View>
