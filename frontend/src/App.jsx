@@ -7,7 +7,6 @@ import InvoiceGenerator from "./pages/dashboard/invoice/InvoiceGenerator";
 import InvoiceList from "./pages/dashboard/invoice/InvoiceList";
 import Stock from "./pages/dashboard/items/Stock";
 import InvoiceId from "./pages/dashboard/invoice/InvoiceId";
-import InvoicePreview from "./components/home/invoice/InvoicePreview";
 import { Toaster } from "sonner";
 
 import { SignedIn, SignedOut, SignIn, SignUp } from "@clerk/clerk-react";
@@ -64,9 +63,6 @@ function App() {
 
        
           </Route>
-
-          {/* Standalone Invoice Preview Route */}
-          <Route path="/invoice/check" element={<InvoicePreview />} />
         </Routes>
       </SignedIn>
     </>
