@@ -291,7 +291,7 @@ const InvoiceList = () => {
         {/* TABLE */}
         {!isLoading && invoices.length > 0 && (
           <>
-            <div className="hidden lg:block bg-white/90 rounded-3xl shadow-2xl border overflow-hidden">
+            <div className="lg:block bg-white/90 rounded-3xl shadow-2xl border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-linear-to-r from-slate-50 via-blue-50 to-indigo-50">
