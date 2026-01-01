@@ -1,17 +1,17 @@
 import { Button } from "@/components/ui/button";
-import { 
-  ChevronLeft, 
-  Trash, 
-  Search, 
-  User, 
-  Phone, 
+import {
+  ChevronLeft,
+  Trash,
+  Search,
+  User,
+  Phone,
   Calendar,
   FileText,
   Package,
   Plus,
   DollarSign,
   Trash2,
-  ShoppingCart
+  ShoppingCart,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import React from "react";
@@ -158,8 +158,12 @@ const AddQuotation = () => {
               </Button>
             </Link>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Add New Quotation</h1>
-              <p className="text-sm text-slate-600">Create a quotation for your customer</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
+                Add New Quotation
+              </h1>
+              <p className="text-sm text-slate-600">
+                Create a quotation for your customer
+              </p>
             </div>
           </div>
           <div className="w-full sm:w-auto">
@@ -195,7 +199,10 @@ const AddQuotation = () => {
                   placeholder="Enter customer name"
                   value={customerDetails.name}
                   onChange={(e) =>
-                    setCustomerDetails({ ...customerDetails, name: e.target.value })
+                    setCustomerDetails({
+                      ...customerDetails,
+                      name: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -208,7 +215,10 @@ const AddQuotation = () => {
                   placeholder="Enter phone number"
                   value={customerDetails.phone}
                   onChange={(e) =>
-                    setCustomerDetails({ ...customerDetails, phone: e.target.value })
+                    setCustomerDetails({
+                      ...customerDetails,
+                      phone: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -251,7 +261,9 @@ const AddQuotation = () => {
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <p className="font-medium text-slate-800">{product.partName}</p>
+                            <p className="font-medium text-slate-800">
+                              {product.partName}
+                            </p>
                             <p className="text-xs text-slate-600 font-mono mt-1 bg-slate-100 inline-block px-2 py-0.5 rounded">
                               {product.partNo}
                             </p>
@@ -260,7 +272,9 @@ const AddQuotation = () => {
                             <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
                               MRP
                             </span>
-                            <p className="font-bold text-slate-800 mt-1">₹{product.revisedMRP.toLocaleString('en-IN')}</p>
+                            <p className="font-bold text-slate-800 mt-1">
+                              ₹{product.revisedMRP.toLocaleString("en-IN")}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -268,7 +282,9 @@ const AddQuotation = () => {
                   ) : (
                     <div className="p-6 text-center">
                       <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500">No products found</p>
+                      <p className="text-sm text-slate-500">
+                        No products found
+                      </p>
                     </div>
                   )}
                 </div>
@@ -285,7 +301,7 @@ const AddQuotation = () => {
                 <ShoppingCart className="w-5 h-5 text-orange-600" />
                 Added Items
                 <span className="text-xs font-normal bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
-                  {items.length} {items.length === 1 ? 'item' : 'items'}
+                  {items.length} {items.length === 1 ? "item" : "items"}
                 </span>
               </div>
             </div>
@@ -295,7 +311,9 @@ const AddQuotation = () => {
               <div className="text-center py-12 bg-slate-50 rounded-lg">
                 <Package className="w-16 h-16 text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-600 font-medium">No items added yet</p>
-                <p className="text-sm text-slate-500 mt-1">Search and add products to create quotation</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  Search and add products to create quotation
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -308,15 +326,21 @@ const AddQuotation = () => {
                         <TableHead className="font-bold">Part No</TableHead>
                         <TableHead className="font-bold">Quantity</TableHead>
                         <TableHead className="font-bold">Unit Price</TableHead>
-                        <TableHead className="font-bold">Total</TableHead>
-                        <TableHead className="font-bold text-center">Actions</TableHead>
+                        <TableHead className="font-bold">MRP</TableHead>
+                        <TableHead className="font-bold text-center">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {items.map((item, index) => (
                         <TableRow key={item._id} className="hover:bg-slate-50">
-                          <TableCell className="font-medium">{index + 1}</TableCell>
-                          <TableCell className="font-medium">{item.partName}</TableCell>
+                          <TableCell className="font-medium">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.partName}
+                          </TableCell>
                           <TableCell>
                             <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
                               {item.partNo}
@@ -327,20 +351,47 @@ const AddQuotation = () => {
                               value={item.quantity}
                               className="max-w-20 text-center font-semibold"
                               onChange={(e) => {
-                                const value = e.target.value.replace(/[^\d.]/g, "");
+                                const value = e.target.value.replace(
+                                  /[^\d.]/g,
+                                  ""
+                                );
                                 updateItems(index, "quantity", value);
                               }}
                               onBlur={(e) => {
-                                const value = e.target.value.replace(/[^\d.]/g, "");
+                                const value = e.target.value.replace(
+                                  /[^\d.]/g,
+                                  ""
+                                );
                                 updateItems(index, "quantity", value);
                               }}
                             />
+                            
                           </TableCell>
                           <TableCell className="font-semibold">
-                            ₹{Number(item.revisedMRP).toLocaleString('en-IN')}
+                            
+                          
+                  
+                            <Input
+                              value={item.revisedMRP}
+                              className="max-w-20 text-center font-semibold"
+                              onChange={(e) => {
+                                const value = e.target.value.replace(
+                                  /[^\d.]/g,
+                                  ""
+                                );
+                                updateItems(index, "revisedMRP", value);
+                              }}
+                              onBlur={(e) => {
+                                const value = e.target.value.replace(
+                                  /[^\d.]/g,
+                                  ""
+                                );
+                                updateItems(index, "revisedMRP", value);
+                              }}
+                            />
                           </TableCell>
                           <TableCell className="font-bold text-green-600">
-                            ₹{itemFinalAmount(item).toLocaleString('en-IN')}
+                            ₹{itemFinalAmount(item).toLocaleString("en-IN")}
                           </TableCell>
                           <TableCell className="text-center">
                             <button
@@ -373,7 +424,9 @@ const AddQuotation = () => {
                     </div>
                     <div>
                       <p className="text-sm opacity-90">Total Amount</p>
-                      <p className="text-3xl font-bold">₹{totalAmount(items).toLocaleString('en-IN')}</p>
+                      <p className="text-3xl font-bold">
+                        ₹{totalAmount(items).toLocaleString("en-IN")}
+                      </p>
                     </div>
                   </div>
                   <div className="text-center sm:text-right">
@@ -397,7 +450,7 @@ const AddQuotation = () => {
                       Make sure all details are correct before saving
                     </p>
                   </div>
-                  <Button 
+                  <Button
                     onClick={handleSaveQuotation}
                     className="bg-green-600 hover:bg-green-700 gap-2 w-full sm:w-auto text-lg px-8 py-6"
                   >

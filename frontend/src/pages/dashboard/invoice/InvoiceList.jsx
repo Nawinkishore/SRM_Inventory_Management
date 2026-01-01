@@ -27,6 +27,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   Pagination,
@@ -199,7 +206,7 @@ const InvoiceList = () => {
           </div>
 
           <div className={`p-6 ${showFilters ? "block" : "hidden"} lg:block`}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex items-center gap-2 flex-wrap ">
               {/* Search */}
               <div className="relative sm:col-span-2 lg:col-span-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -215,34 +222,46 @@ const InvoiceList = () => {
                 />
               </div>
 
-              {/* Type */}
-              <select
-                value={type}
-                onChange={(e) => {
-                  setType(e.target.value);
-                  setPage(1);
-                }}
-                className="h-12 bg-white border-2 rounded-xl px-4"
-              >
-                <option value="all">All Types</option>
-                <option value="job-card">Job Card</option>
-                <option value="sales">Sales</option>
-                <option value="advance">Advance</option>
-              </select>
+              <div className="flex items-center gap-2">
+                {/* Type */}
+                <Select
+                  value={type}
+                  onValueChange={(value) => {
+                    setType(value);
+                    setPage(1);
+                  }}
+                  className="h-12 bg-white border-2 rounded-xl px-4"
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="job-card">Job Card</SelectItem>
+                    <SelectItem value="sales">Sales</SelectItem>
+                    <SelectItem value="advance">Advance</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              {/* Status */}
-              <select
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                }}
-                className="h-12 bg-white border-2 rounded-xl px-4"
-              >
-                <option value="all">All Status</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-              </select>
+                {/* Status */}
+                <Select
+                  value={status}
+                  onValueChange={(value) => {
+                    setStatus(value);
+                    setPage(1);
+                  }}
+                  className="h-12 bg-white border-2"
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
@@ -389,9 +408,7 @@ const InvoiceList = () => {
 
                     <PaginationItem>
                       <PaginationNext
-                        onClick={() =>
-                          page < totalPages && setPage(page + 1)
-                        }
+                        onClick={() => page < totalPages && setPage(page + 1)}
                         disabled={page >= totalPages}
                       />
                     </PaginationItem>

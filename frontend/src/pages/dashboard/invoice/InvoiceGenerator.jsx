@@ -35,6 +35,7 @@ import {
   useCreateInvoice,
 } from "@/features/invoice/useInvoice";
 import { useProductSearch } from "@/features/products/useProduct";
+import { Button } from "@/components/ui/button";
 
 const InvoiceGenerator = () => {
   const { data: invoiceNumber } = useNextInvoiceNumber();
@@ -672,13 +673,13 @@ const InvoiceGenerator = () => {
                         />
                       </TableCell>
                       <TableCell className="text-center">
-                        <button
+                        <Button
                           onClick={() => deleteItem(index)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Remove item"
                         >
                           <Trash2 className="w-5 h-5" />
-                        </button>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -701,7 +702,7 @@ const InvoiceGenerator = () => {
                 Payment Type
               </label>
               <div className="flex gap-4">
-                <button
+                <Button
                   onClick={() => setAmountType("cash")}
                   className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all ${
                     amountType === "cash"
@@ -710,9 +711,9 @@ const InvoiceGenerator = () => {
                   }`}
                 >
                   Cash
-                </button>
+                </Button>
 
-                <button
+                <Button
                   onClick={() => setAmountType("credit")}
                   className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all ${
                     amountType === "credit"
@@ -721,7 +722,7 @@ const InvoiceGenerator = () => {
                   }`}
                 >
                   Credit
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -774,13 +775,13 @@ const InvoiceGenerator = () => {
 
         {/* Submit */}
         <div className="flex justify-end">
-          <button
+          <Button
             onClick={handleSubmit}
             disabled={createInvoiceMutation.isPending}
             className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {createInvoiceMutation.isPending ? "Creating..." : "Submit Invoice"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

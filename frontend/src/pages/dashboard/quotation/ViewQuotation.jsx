@@ -390,7 +390,7 @@ const ViewQuotation = () => {
                           <TableHead className="font-bold">Part No</TableHead>
                           <TableHead className="font-bold">Quantity</TableHead>
                           <TableHead className="font-bold">Unit Price</TableHead>
-                          <TableHead className="font-bold">Total</TableHead>
+                          <TableHead className="font-bold">MRP</TableHead>
                           {isEditing && <TableHead className="font-bold text-center">Actions</TableHead>}
                         </TableRow>
                       </TableHeader>
@@ -422,7 +422,18 @@ const ViewQuotation = () => {
                             </TableCell>
 
                             <TableCell className="font-semibold">
-                              ₹{Number(item.MRP).toLocaleString('en-IN')}
+                              <Input
+                                className="max-w-20 text-center font-semibold"
+                                value={item.MRP}
+                                onChange={(e) =>
+                                  updateItems(
+                                    index,
+                                    "MRP",
+                                    e.target.value.replace(/[^\d.]/g, "")
+                                  )
+                                }
+                                disabled={!isEditing}
+                              />
                             </TableCell>
 
                             <TableCell className="font-bold text-green-600">
