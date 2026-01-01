@@ -1,12 +1,10 @@
 import React from "react";
 import { Menu, X } from "lucide-react";
 
-import {UserButton} from "@clerk/clerk-react"; 
-
+import { UserButton } from "@clerk/clerk-react";
+import TextType from "@/components/TextType";
 
 export default function Navbar({ isSidebarOpen, setIsSidebarOpen }) {
-  
-
   return (
     <nav className="bg-white border-b fixed w-full z-30 top-0">
       <div className="px-4 lg:px-6">
@@ -19,9 +17,23 @@ export default function Navbar({ isSidebarOpen, setIsSidebarOpen }) {
               {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
 
-            <h1 className="text-xl font-semibold">Dashboard</h1>
+            <div>
+              <TextType
+                text={[
+                  "Welcome to SRM Inventory",
+                  "Manage your stock with ease.",
+                  "Generate invoices quickly.",
+                  "Stay organized effortlessly.",
+                  "Happy managing!",
+                ]}
+                typingSpeed={75}
+                pauseDuration={1500}
+                showCursor={true}
+                cursorCharacter="|"
+              />
+            </div>
           </div>
-          
+
           <UserButton />
         </div>
       </div>

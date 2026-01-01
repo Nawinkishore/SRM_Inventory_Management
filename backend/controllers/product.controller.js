@@ -1,4 +1,5 @@
-import Product from '../import-excel/models/Product.js';
+import Product from '../models/product.model.js';
+
 export const getProducts = async (req, res) => {
   try {
     const { search } = req.query;
@@ -19,3 +20,4 @@ export const getProducts = async (req, res) => {
     return res.status(400).json({ success: false, message: error.message });
   }
 }
+

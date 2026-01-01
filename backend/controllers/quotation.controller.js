@@ -3,7 +3,9 @@ import Quotation from "../models/quotation.model.js";
 export const createQuotation = async (req, res) => {
   const data = req.body;
   const randomNumber = Math.floor(100000 + Math.random() * 900000);
-  const find = await Quotation.findOne({ quotationNumber: `QT-${data.customer.name}-${randomNumber}` });
+  const find = await Quotation.findOne({
+    quotationNumber: `QT-${data.customer.name}-${randomNumber}`,
+  });
   if (find) {
     return res.status(400).json({
       success: false,
@@ -27,6 +29,39 @@ export const createQuotation = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to create quotation",
+      error: error.message,
+    });
+  }
+};
+
+export const searchQuotations = async (req, res) => {
+  const { query = "" } = req.query;
+
+  try {
+    if (!query.trim()) {
+      return res.status(200).json({
+        success: true,
+        message: "Empty search",
+        data: [],
+      });
+    }
+
+    const quotations = await Quotation.find({
+      $or: [
+        { quotationNumber: { $regex: query, $options: "i" } },
+        { "customer.name": { $regex: query, $options: "i" } },
+      ],
+    }).lean();
+
+    res.status(200).json({
+      success: true,
+      message: "Search completed successfully",
+      data: quotations,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to search quotations",
       error: error.message,
     });
   }
@@ -136,9 +171,9 @@ export const deleteQuotationById = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({
-      success:false,
+      success: false,
       message: "Failed to delete quotation",
       error: error.message,
-    })
+    });
   }
 };

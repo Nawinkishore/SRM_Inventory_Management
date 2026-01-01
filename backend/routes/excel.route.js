@@ -8,6 +8,6 @@ const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
 // Route → POST /api/excel/import
-router.post("/import", upload.single("file"), importExcel);
+router.put("/import", upload.single("file"), importExcel);
 
 export default router;

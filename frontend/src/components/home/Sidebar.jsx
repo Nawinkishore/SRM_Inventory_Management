@@ -4,8 +4,8 @@ import {
   FileText,
   Container,
   ShoppingCart,
-  EqualApproximately 
- 
+  EqualApproximately,
+  Sheet,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -37,8 +37,13 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       label: "Quotation",
       icon: EqualApproximately,
       path: "/dashboard/quotation",
-    }
-    // {id :'excel',label:'Import Excel', icon: Sheet, path:'/dashboard/excel' },
+    },
+    {
+      id: "excel",
+      label: "Import Excel",
+      icon: Sheet,
+      path: "/dashboard/excel",
+    },
   ];
 
   const isActive = (path) => {
@@ -82,7 +87,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       {/* Overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
+          className="fixed inset-0 bg-gray-400/60 z-10 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

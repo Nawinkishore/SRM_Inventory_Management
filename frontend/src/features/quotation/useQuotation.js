@@ -66,3 +66,20 @@ export const useDeleteQuotationById = () => {
     },
   });
 }
+
+
+export const useSearchQuotations = (searchTerm) => {
+  return useQuery({
+    queryKey: ["searchQuotations", searchTerm],
+
+    queryFn: async ({ queryKey }) => {
+      const [, term] = queryKey; // extract searchTerm
+      const res = await api.get(
+        `/quotation/search?query=${encodeURIComponent(term)}`
+      );
+      return res.data;
+    },
+
+    enabled: !!searchTerm && searchTerm.length > 0, // only run when term exists
+  });
+};

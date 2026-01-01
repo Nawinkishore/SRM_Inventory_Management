@@ -15,6 +15,7 @@ import EditItem from "./pages/dashboard/items/EditItem";
 import Quotation from "./pages/dashboard/quotation/Quotation";
 import AddQuotation from "./pages/dashboard/quotation/AddQuotation";
 import ViewQuotation from "./pages/dashboard/quotation/ViewQuotation";
+import Excel from "./pages/dashboard/excel/Excel";
 
 function App() {
   return (
@@ -71,6 +72,9 @@ function App() {
             <Route path="quotation" element={<Quotation />} />
             <Route path="quotation/add" element={<AddQuotation />} />
             <Route path="quotation/view/:id" element={<ViewQuotation />} />
+            <Route path="excel" element={<Excel />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            
           </Route>
         </Routes>
       </SignedIn>

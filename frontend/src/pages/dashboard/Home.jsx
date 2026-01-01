@@ -1,6 +1,13 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
+import { 
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from "recharts";
+import { 
+  TrendingUp, DollarSign, Package, AlertTriangle, 
+  FileText, CheckCircle, Clock, ShoppingCart 
+} from "lucide-react";
 import { useInvoices } from "@/features/invoice/useInvoice";
 import { useStockSummary, useItems } from "@/features/items/useItems";
 
@@ -50,7 +57,7 @@ const Home = () => {
   // 🔹 STOCK SUMMARY
   const { data: stockSummary, isLoading: stockLoading } = useStockSummary();
 
-  // 🔹 FETCH ALL INVOICES FOR ACCURATE STATS (high limit)
+  // 🔹 FETCH ALL INVOICES FOR ACCURATE STATS
   const { data: allInvoicesData, isLoading: statsLoading } = useInvoices({
     page: 1,
     limit: 1000, 
@@ -60,7 +67,7 @@ const Home = () => {
     customerName: "",
   });
 
-  // 🔹 RECENT INVOICES FOR DISPLAY (limited)
+  // 🔹 RECENT INVOICES FOR DISPLAY
   const { data: recentInvoicesData, isLoading: invoicesLoading } = useInvoices({
     page: 1,
     limit: 10,
@@ -70,7 +77,7 @@ const Home = () => {
     customerName: "",
   });
 
-  // 🔹 ALL ITEMS (for stock alerts)
+  // 🔹 ALL ITEMS
   const { data: itemsData, isLoading: itemsLoading } = useItems({
     page: 1,
     limit: 100,
@@ -78,47 +85,28 @@ const Home = () => {
   });
 
   // ---- SAFE VALUES WITH NULL CHECKS ----
-  // Use all invoices for calculations
   const allInvoices = allInvoicesData?.data ?? [];
   const totalInvoicesCount = allInvoicesData?.meta?.totalDocs ?? 0;
-
-  // Use recent invoices for display
   const recentInvoices = recentInvoicesData?.data ?? [];
 
-  // Calculate completed invoices from ALL invoices
   const completedInvoices = allInvoices.filter(
     (i) => i.invoiceStatus === "completed"
   ).length;
 
-  // Calculate pending invoices - invoices with status "pending"
   const pendingInvoices = allInvoices.filter(
     (i) => i.invoiceStatus === "pending"
   ).length;
 
-  // Note: With the new model, there are only "completed" and "pending" statuses
-  // Overdue is determined by pending status with balance due > 0
-  const overdueInvoices = allInvoices.filter(
-    (i) => 
-      i.invoiceStatus === "pending" && 
-      Number(i.balanceDue || 0) > 0
-  ).length;
-
-  // Low stock items (stock <= 3)
   const lowStock = itemsData?.data?.filter((item) => Number(item.stock) <= 3) ?? [];
-
   const stockValue = Number(stockSummary?.stockValue || 0);
 
-  // Revenue calculations with null safety - USING ALL INVOICES
+  // Revenue calculations
   const totalRevenue = allInvoices
     .filter((i) => i.invoiceStatus === "completed")
     .reduce((sum, inv) => sum + (Number(inv.totalAmount) || 0), 0);
 
-  // Total pending = all invoices with balance due
   const totalPending = allInvoices
-    .filter((i) => 
-      i.invoiceStatus === "pending" && 
-      Number(i.balanceDue || 0) > 0
-    )
+    .filter((i) => i.invoiceStatus === "pending" && Number(i.balanceDue || 0) > 0)
     .reduce((sum, inv) => sum + (Number(inv.balanceDue) || 0), 0);
 
   // Invoice type counts
@@ -136,7 +124,6 @@ const Home = () => {
 
   const totalItems = itemsData?.meta?.totalDocs ?? 0;
 
-  // Calculate stats safely
   const avgInvoiceValue = totalInvoicesCount > 0 
     ? Math.round(allInvoices.reduce((sum, inv) => sum + (Number(inv.totalAmount) || 0), 0) / totalInvoicesCount)
     : 0;
@@ -149,289 +136,482 @@ const Home = () => {
     ? Math.round((completedInvoices / totalInvoicesCount) * 100) 
     : 0;
 
+  // Chart Data
+  const invoiceTypeData = [
+    { name: 'Sales', value: salesInvoices, color: '#3b82f6' },
+    { name: 'Job Card', value: jobCardInvoices, color: '#a855f7' },
+    { name: 'Advance', value: advanceInvoices, color: '#10b981' },
+  ].filter(d => d.value > 0);
+
+  const invoiceStatusData = [
+    { name: 'Completed', value: completedInvoices, color: '#22c55e' },
+    { name: 'Pending', value: pendingInvoices, color: '#eab308' },
+  ].filter(d => d.value > 0);
+
+  const revenueData = [
+    { name: 'Revenue', amount: totalRevenue, fill: '#22c55e' },
+    { name: 'Pending', amount: totalPending, fill: '#f59e0b' },
+  ];
+
+  const stockStatusData = [
+    { name: 'Low Stock', value: lowStock.length, color: '#ef4444' },
+    { name: 'Normal Stock', value: totalItems - lowStock.length, color: '#22c55e' },
+  ].filter(d => d.value > 0);
+
   return (
-    <div className="space-y-6 p-6 bg-slate-50 min-h-screen">
-      {/* HEADER */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800">Dashboard</h1>
-        <p className="text-slate-600 mt-1">
-          Track invoices, payments and stock — all in one place.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+      <div className="space-y-6 p-4 sm:p-6">
+        {/* HEADER */}
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Dashboard Overview
+          </h1>
+          <p className="text-slate-600 mt-2">
+            Track invoices, payments and stock — all in one place.
+          </p>
+        </div>
 
-      {/* KPI CARDS - ROW 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {statsLoading ? "..." : `₹${totalRevenue.toLocaleString('en-IN')}`}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">From completed invoices</p>
-          </CardContent>
-        </Card>
+        {/* PRIMARY KPI CARDS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium opacity-90">Total Revenue</CardTitle>
+                <DollarSign className="w-5 h-5 opacity-80" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-1">
+                {statsLoading ? "..." : `₹${(totalRevenue / 100000).toFixed(1)}L`}
+              </div>
+              <p className="text-xs opacity-80">₹{totalRevenue.toLocaleString('en-IN')}</p>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Pending Amount</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              {statsLoading ? "..." : `₹${totalPending.toLocaleString('en-IN')}`}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Outstanding balance</p>
-          </CardContent>
-        </Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500 to-orange-600 text-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium opacity-90">Pending Amount</CardTitle>
+                <Clock className="w-5 h-5 opacity-80" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-1">
+                {statsLoading ? "..." : `₹${(totalPending / 100000).toFixed(1)}L`}
+              </div>
+              <p className="text-xs opacity-80">₹{totalPending.toLocaleString('en-IN')}</p>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Stock Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {stockLoading ? "..." : `₹${stockValue.toLocaleString('en-IN')}`}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">{totalItems} items in inventory</p>
-          </CardContent>
-        </Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium opacity-90">Stock Value</CardTitle>
+                <Package className="w-5 h-5 opacity-80" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-1">
+                {stockLoading ? "..." : `₹${(stockValue / 100000).toFixed(1)}L`}
+              </div>
+              <p className="text-xs opacity-80">{totalItems} items</p>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Low Stock Items</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {itemsLoading ? "..." : lowStock.length}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Need attention</p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-red-500 to-red-600 text-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium opacity-90">Low Stock Alert</CardTitle>
+                <AlertTriangle className="w-5 h-5 opacity-80" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-1">
+                {itemsLoading ? "..." : lowStock.length}
+              </div>
+              <p className="text-xs opacity-80">Need attention</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* KPI CARDS - ROW 2 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-600">Total Invoices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-slate-800">
-              {statsLoading ? "..." : totalInvoicesCount}
-            </div>
-          </CardContent>
-        </Card>
+        {/* SECONDARY KPI CARDS */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-l-4 border-l-slate-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                <FileText className="w-3 h-3" />
+                Total Invoices
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-slate-800">
+                {statsLoading ? "..." : totalInvoicesCount}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-600">Sales</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-blue-600">
-              {statsLoading ? "..." : salesInvoices}
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                <ShoppingCart className="w-3 h-3" />
+                Sales
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                {statsLoading ? "..." : salesInvoices}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-600">Job Card</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-purple-600">
-              {statsLoading ? "..." : jobCardInvoices}
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-l-4 border-l-purple-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-slate-600">Job Card</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">
+                {statsLoading ? "..." : jobCardInvoices}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-600">Completed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-green-600">
-              {statsLoading ? "..." : completedInvoices}
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-l-4 border-l-emerald-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-slate-600">Advance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600">
+                {statsLoading ? "..." : advanceInvoices}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-600">Pending</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-yellow-600">
-              {statsLoading ? "..." : pendingInvoices}
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-l-4 border-l-green-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Completed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {statsLoading ? "..." : completedInvoices}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-600">Overdue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-red-600">
-              {statsLoading ? "..." : overdueInvoices}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-l-4 border-l-yellow-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                Pending
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                {statsLoading ? "..." : pendingInvoices}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* RECENT INVOICES & QUICK STATS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Invoices</CardTitle>
-          </CardHeader>
+        {/* CHARTS SECTION */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Revenue vs Pending */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+                Revenue Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    formatter={(value) => `₹${value.toLocaleString('en-IN')}`}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  />
+                  <Bar dataKey="amount" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="font-semibold">Invoice No</TableHead>
-                    <TableHead className="font-semibold">Customer</TableHead>
-                    <TableHead className="font-semibold">Type</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold">Total</TableHead>
-                    <TableHead className="font-semibold">Balance</TableHead>
-                    <TableHead className="font-semibold">Date</TableHead>
-                  </TableRow>
-                </TableHeader>
+          {/* Invoice Types Distribution */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-600" />
+                Invoice Types
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {invoiceTypeData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={invoiceTypeData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {invoiceTypeData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-slate-500">
+                  No invoice data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-                <TableBody>
-                  {invoicesLoading && (
+          {/* Invoice Status Distribution */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                Invoice Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {invoiceStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={invoiceStatusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {invoiceStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-slate-500">
+                  No status data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Stock Status */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Package className="w-5 h-5 text-purple-600" />
+                Stock Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stockStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={stockStatusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {stockStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-slate-500">
+                  No stock data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RECENT INVOICES & QUICK STATS */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Recent Invoices</CardTitle>
+            </CardHeader>
+
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-slate-500">
-                        Loading invoices...
-                      </TableCell>
+                      <TableHead className="font-semibold">Invoice No</TableHead>
+                      <TableHead className="font-semibold">Customer</TableHead>
+                      <TableHead className="font-semibold">Type</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
+                      <TableHead className="font-semibold">Total</TableHead>
+                      <TableHead className="font-semibold">Balance</TableHead>
+                      <TableHead className="font-semibold">Date</TableHead>
                     </TableRow>
-                  )}
+                  </TableHeader>
 
-                  {!invoicesLoading && recentInvoices.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-slate-500">
-                        No invoices found
-                      </TableCell>
-                    </TableRow>
-                  )}
-
-                  {!invoicesLoading && recentInvoices.slice(0, 8).map((inv) => {
-                    // Determine display status - show "overdue" if pending with balance due
-                    const isOverdue = inv.invoiceStatus === "pending" && 
-                                     Number(inv.balanceDue || 0) > 0;
-                    
-                    const displayStatus = isOverdue ? "overdue" : inv.invoiceStatus;
-                    const totalAmount = Number(inv.totalAmount) || 0;
-
-                    return (
-                      <TableRow key={inv._id} className="hover:bg-slate-50">
-                        <TableCell className="font-medium text-blue-600">{inv.invoiceNumber}</TableCell>
-                        <TableCell className="capitalize">{inv.customer?.name || "-"}</TableCell>
-                        <TableCell>
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            inv.invoiceType?.toLowerCase() === "sales" ? "bg-blue-100 text-blue-700" : 
-                            inv.invoiceType?.toLowerCase() === "job-card" ? "bg-purple-100 text-purple-700" :
-                            inv.invoiceType?.toLowerCase() === "advance" ? "bg-emerald-100 text-emerald-700" :
-                            "bg-indigo-100 text-indigo-700"
-                          }`}>
-                            {inv.invoiceType}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              displayStatus === "completed"
-                                ? "bg-green-100 text-green-700"
-                                : displayStatus === "overdue"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {displayStatus}
-                          </span>
-                        </TableCell>
-
-                        <TableCell className="font-semibold">₹{totalAmount.toLocaleString('en-IN')}</TableCell>
-                        
-                        <TableCell className={Number(inv.balanceDue) > 0 ? "text-orange-600 font-medium" : "text-green-600"}>
-                          ₹{Number(inv.balanceDue || 0).toLocaleString('en-IN')}
-                        </TableCell>
-
-                        <TableCell className="text-slate-600">
-                          {inv.invoiceDate || inv.createdAt
-                            ? new Date(inv.invoiceDate || inv.createdAt).toLocaleDateString('en-IN')
-                            : "-"}
+                  <TableBody>
+                    {invoicesLoading && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                          Loading invoices...
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                    )}
 
-        {/* QUICK STATS SIDEBAR */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Quick Stats</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="border-b pb-4">
-              <div className="text-xs text-slate-500 mb-2">Invoice Success Rate</div>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold text-slate-800">
-                  {statsLoading ? "..." : `${successRate}%`}
-                </span>
-                <span className="text-xs text-slate-500 mb-1">
-                  ({completedInvoices} of {totalInvoicesCount})
-                </span>
+                    {!invoicesLoading && recentInvoices.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                          No invoices found
+                        </TableCell>
+                      </TableRow>
+                    )}
+
+                    {!invoicesLoading && recentInvoices.slice(0, 8).map((inv) => {
+                      const totalAmount = Number(inv.totalAmount) || 0;
+
+                      return (
+                        <TableRow key={inv._id} className="hover:bg-slate-50">
+                          <TableCell className="font-medium text-blue-600">{inv.invoiceNumber}</TableCell>
+                          <TableCell className="capitalize">{inv.customer?.name || "-"}</TableCell>
+                          <TableCell>
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              inv.invoiceType?.toLowerCase() === "sales" ? "bg-blue-100 text-blue-700" : 
+                              inv.invoiceType?.toLowerCase() === "job-card" ? "bg-purple-100 text-purple-700" :
+                              inv.invoiceType?.toLowerCase() === "advance" ? "bg-emerald-100 text-emerald-700" :
+                              "bg-indigo-100 text-indigo-700"
+                            }`}>
+                              {inv.invoiceType}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                inv.invoiceStatus === "completed"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-yellow-100 text-yellow-700"
+                              }`}
+                            >
+                              {inv.invoiceStatus}
+                            </span>
+                          </TableCell>
+
+                          <TableCell className="font-semibold">₹{totalAmount.toLocaleString('en-IN')}</TableCell>
+                          
+                          <TableCell className={Number(inv.balanceDue) > 0 ? "text-orange-600 font-medium" : "text-green-600"}>
+                            ₹{Number(inv.balanceDue || 0).toLocaleString('en-IN')}
+                          </TableCell>
+
+                          <TableCell className="text-slate-600">
+                            {inv.invoiceDate || inv.createdAt
+                              ? new Date(inv.invoiceDate || inv.createdAt).toLocaleDateString('en-IN')
+                              : "-"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="border-b pb-4">
-              <div className="text-xs text-slate-500 mb-2">Average Invoice Value</div>
-              <div className="text-3xl font-bold text-slate-800">
-                {statsLoading ? "..." : `₹${avgInvoiceValue.toLocaleString('en-IN')}`}
+          {/* QUICK STATS SIDEBAR */}
+          <Card className="shadow-sm bg-gradient-to-br from-slate-50 to-blue-50">
+            <CardHeader>
+              <CardTitle className="text-lg">Quick Stats</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  Success Rate
+                </div>
+                <div className="flex items-end gap-2">
+                  <span className="text-3xl font-bold text-green-600">
+                    {statsLoading ? "..." : `${successRate}%`}
+                  </span>
+                  <span className="text-xs text-slate-500 mb-1">
+                    ({completedInvoices}/{totalInvoicesCount})
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div className="border-b pb-4">
-              <div className="text-xs text-slate-500 mb-2">Collection Rate</div>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold text-slate-800">
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                  <DollarSign className="w-3 h-3" />
+                  Avg Invoice Value
+                </div>
+                <div className="text-3xl font-bold text-blue-600">
+                  {statsLoading ? "..." : `₹${avgInvoiceValue.toLocaleString('en-IN')}`}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Collection Rate
+                </div>
+                <div className="text-3xl font-bold text-purple-600">
                   {statsLoading ? "..." : `${collectionRate}%`}
-                </span>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <div className="text-xs text-slate-500 mb-2">Items with Low Stock</div>
-              <div className="text-3xl font-bold text-red-600">
-                {itemsLoading ? "..." : `${lowStock.length} / ${totalItems}`}
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
+                <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Low Stock Items
+                </div>
+                <div className="text-3xl font-bold text-red-600">
+                  {itemsLoading ? "..." : `${lowStock.length}/${totalItems}`}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* LOW STOCK & RECENT ACTIVITY */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* LOW STOCK ALERTS */}
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">Low Stock Alerts</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              Low Stock Alerts
+            </CardTitle>
           </CardHeader>
 
           <CardContent>
             {itemsLoading ? (
               <div className="text-center py-8 text-slate-500">Loading items...</div>
             ) : lowStock.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-5xl mb-3">✓</p>
-                <p className="text-slate-600 font-medium">All items are well stocked</p>
+              <div className="text-center py-12 bg-green-50 rounded-lg">
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-3" />
+                <p className="text-slate-600 font-medium text-lg">All items are well stocked</p>
+                <p className="text-slate-500 text-sm mt-1">No immediate action required</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -448,11 +628,14 @@ const Home = () => {
 
                   <TableBody>
                     {lowStock.slice(0, 5).map((item) => (
-                      <TableRow key={item._id} className="hover:bg-slate-50">
-                        <TableCell className="font-mono text-xs text-slate-600">{item.partNo}</TableCell>
+                      <TableRow key={item._id} className="hover:bg-red-50">
+                        <TableCell className="font-mono text-xs text-slate-600 bg-slate-50">{item.partNo}</TableCell>
                         <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell className="text-red-600 font-bold text-lg">
-                          {item.stock}
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1 text-red-600 font-bold text-lg bg-red-50 px-2 py-1 rounded">
+                            <AlertTriangle className="w-4 h-4" />
+                            {item.stock}
+                          </span>
                         </TableCell>
                         <TableCell>₹{Number(item.salePrice || 0).toLocaleString('en-IN')}</TableCell>
                         <TableCell className="font-semibold">
@@ -464,70 +647,6 @@ const Home = () => {
                 </Table>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {invoicesLoading ? (
-                <div className="text-center py-8 text-slate-500">Loading activity...</div>
-              ) : recentInvoices.length === 0 ? (
-                <div className="text-center py-8 text-slate-500">
-                  No recent activity
-                </div>
-              ) : (
-                recentInvoices.slice(0, 6).map((inv) => {
-                  const isOverdue = inv.invoiceStatus === "pending" && 
-                                   Number(inv.balanceDue || 0) > 0;
-                  const displayStatus = isOverdue ? "overdue" : inv.invoiceStatus;
-                  const totalAmount = Number(inv.totalAmount) || 0;
-
-                  return (
-                    <div key={inv._id} className="flex items-start gap-3 border-b pb-3 last:border-0 hover:bg-slate-50 p-2 rounded transition-colors">
-                      <div className={`w-3 h-3 rounded-full mt-2 shrink-0 ${
-                        displayStatus === "completed" ? "bg-green-500" :
-                        displayStatus === "overdue" ? "bg-red-500" : 
-                        "bg-yellow-500"
-                      }`}></div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-semibold text-sm text-blue-600">{inv.invoiceNumber}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            inv.invoiceType?.toLowerCase() === "sales" ? "bg-blue-100 text-blue-700" : 
-                            inv.invoiceType?.toLowerCase() === "job-card" ? "bg-purple-100 text-purple-700" :
-                            inv.invoiceType?.toLowerCase() === "advance" ? "bg-emerald-100 text-emerald-700" :
-                            "bg-indigo-100 text-indigo-700"
-                          }`}>
-                            {inv.invoiceType}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            displayStatus === "completed" ? "bg-green-100 text-green-700" :
-                            displayStatus === "overdue" ? "bg-red-100 text-red-700" :
-                            "bg-yellow-100 text-yellow-700"
-                          }`}>
-                            {displayStatus}
-                          </span>
-                        </div>
-                        <div className="text-sm text-slate-700 font-medium capitalize">
-                          {inv.customer?.name || "Unknown Customer"}
-                        </div>
-                        <div className="text-xs text-slate-500 mt-1">
-                          ₹{totalAmount.toLocaleString('en-IN')} • {
-                            inv.invoiceDate || inv.createdAt
-                              ? new Date(inv.invoiceDate || inv.createdAt).toLocaleDateString('en-IN')
-                              : "-"
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
           </CardContent>
         </Card>
       </div>
