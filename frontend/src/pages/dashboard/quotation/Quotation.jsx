@@ -8,6 +8,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { BlobProvider } from "@react-pdf/renderer";
 
 import { useGetQuotations } from "@/features/quotation/useQuotation";
 import { Link } from "react-router-dom";
@@ -19,7 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Printer, Trash, View } from "lucide-react";
+import { Eye, Printer, Trash, View, Download } from "lucide-react";
+import QuotationPDF from "./QuotationPDF";
 
 const Quotation = () => {
   const [page, setPage] = useState(1);
@@ -50,8 +52,10 @@ const Quotation = () => {
             {quotations.length === 0 ? (
               <p>No quotations found.</p>
             ) : (
-              quotations.map((q) => (
-                <div key={q._id} className="border-b py-2">
+              <div className="border rounded-md p-4">
+                {quotations.length === 0 ? (
+                  <p>No quotations found.</p>
+                ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -62,35 +66,75 @@ const Quotation = () => {
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
+
                     <TableBody>
-                      {data.data.map((quotation, index) => (
+                      {quotations.map((quotation, index) => (
                         <TableRow key={quotation._id}>
-                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>
+                            {(page - 1) * limit + index + 1}
+                          </TableCell>
                           <TableCell>{quotation.quotationNumber}</TableCell>
                           <TableCell>{quotation.customer.name}</TableCell>
+
                           <TableCell>
                             {new Date(quotation.date).toLocaleDateString()}
                           </TableCell>
+
                           <TableCell>
-                            <div className="flex ">
-                              <Link to={`/dashboard/quotation/view/${quotation._id}`}>
-                                <Eye
-                                  size={20}
-                                  className="cursor-pointer mr-4 hover:scale-110 hover:text-blue-500"
-                                />
+                            <div className="flex items-center space-x-2">
+                              <Link
+                                to={`/dashboard/quotation/view/${quotation._id}`}
+                              >
+                                <Eye className="cursor-pointer hover:text-blue-500"  size={16}/>
                               </Link>
-                              <Printer
-                                size={20}
-                                className="cursor-pointer  hover:scale-110 hover:text-blue-500"
-                              />
+
+                              <BlobProvider
+                                document={
+                                  <QuotationPDF quotation={quotation} />
+                                }
+                              >
+                                {({ url }) => (
+                                  <button
+                                    onClick={() => url && window.open(url)}
+                                  >
+                                    <Printer 
+                                    size={16}
+                                    className="text-black hover:cursor-pointer hover:text-blue-500 hover:scale-110"
+                                    
+                                    />
+                                  </button>
+                                )}
+                              </BlobProvider>
+
+                              <BlobProvider
+                                document={
+                                  <QuotationPDF quotation={quotation} />
+                                }
+                              >
+                                {({ url }) => (
+                                  <button
+                                    onClick={() => {
+                                      if (!url) return;
+                                      const a = document.createElement("a");
+                                      a.href = url;
+                                      a.download = `Quotation-${quotation.quotationNumber}.pdf`;
+                                      a.click();
+                                    }}
+                                  >
+                                    <Download size={16}
+                                    className="text-black hover:cursor-pointer hover:text-blue-500 hover:scale-110"
+                                    />
+                                  </button>
+                                )}
+                              </BlobProvider>
                             </div>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                </div>
-              ))
+                )}
+              </div>
             )}
           </div>
 

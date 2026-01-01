@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Trash } from "lucide-react";
 import { Link } from "react-router-dom";
-import React from "react";
+import React, { useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useProductSearch } from "@/features/products/useProduct";
@@ -15,11 +15,11 @@ import {
   TableBody,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
 
 const AddQuotation = () => {
   const { mutate: addQuotation } = useAddQuotation();
 
-  const [quotationNumber, setQuotationNumber] = React.useState("");
   const [date, setDate] = React.useState("");
   const [customerDetails, setCustomerDetails] = React.useState({
     name: "",
@@ -84,7 +84,6 @@ const AddQuotation = () => {
 
   function generateQuotationPayload() {
     return {
-      quotationNumber: quotationNumber,
       date: date,
       customer: {
         name: customerDetails.name,
@@ -101,10 +100,6 @@ const AddQuotation = () => {
   }
 
   const handleSaveQuotation = () => {
-    if (!quotationNumber.trim()) {
-      toast.error("Quotation Number is required");
-      return;
-    }
     if (!customerDetails.name.trim() || !customerDetails.phone.trim()) {
       toast.error("Customer details are required");
       return;
@@ -113,12 +108,16 @@ const AddQuotation = () => {
       toast.error("At least one item must be added");
       return;
     }
+    if (!date) {
+      toast.error("Date is required");
+      return;
+    }
+
     const payload = generateQuotationPayload();
     try {
       addQuotation(payload, {
         onSuccess: () => {
           toast.success("Quotation added successfully");
-          setQuotationNumber("");
           setDate("");
           setCustomerDetails({ name: "", phone: "" });
           setItems([]);
@@ -133,26 +132,18 @@ const AddQuotation = () => {
   };
   return (
     <section className="space-y-5">
-      <div className="flex items-center gap-2">
-        <Link to="/dashboard/quotation">
-          <Button variant="outline">
-            <ChevronLeft className="mr-1" />
-            Back
-          </Button>
-        </Link>
-        <h1 className="font-bold text-xl">Add Quotation</h1>
-      </div>
-
-      {/* Quotation Details */}
-      <Card className="p-5 space-y-4">
-        <strong className="text-base">Quotation Details</strong>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input
-            placeholder="Quotation Number"
-            value={quotationNumber}
-            onChange={(e) => setQuotationNumber(e.target.value)}
-          />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Link to="/dashboard/quotation">
+            <Button variant="outline">
+              <ChevronLeft className="mr-1" />
+              Back
+            </Button>
+          </Link>
+          <h1 className="font-bold text-xl">Add Quotation</h1>
+        </div>
+        <div className="">
+          <Label className="mb-2">Quotation Date</Label>
           <Input
             placeholder="Date"
             type="date"
@@ -160,7 +151,7 @@ const AddQuotation = () => {
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
-      </Card>
+      </div>
 
       {/* Customer */}
       <Card className="p-5 space-y-4">

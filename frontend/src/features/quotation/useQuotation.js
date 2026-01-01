@@ -38,3 +38,31 @@ export const useGetQuotationById = (id) => {
         enabled: !!id,
     });
 }
+
+
+export const useUpdateQuotationbyId = () => {
+   const queryClient = useQueryClient();
+   return useMutation({
+    mutationFn:async ({id,payload})=>{
+        const response = await api.patch(`/quotation/${id}`,payload);
+        return response.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      queryClient.invalidateQueries({ queryKey: ["quotation", variables.id] });
+    }
+   })
+}
+
+export const useDeleteQuotationById = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const response = await api.delete(`/quotation/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+    },
+  });
+}
