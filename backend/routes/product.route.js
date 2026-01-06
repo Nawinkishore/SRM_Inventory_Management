@@ -5,7 +5,8 @@ import {
   getItemById,
   updateProduct,
   getProductStats,
-  createProduct
+  createProduct,
+  deleteProduct
 } from '../controllers/product.controller.js';
 
 const router = express.Router();
@@ -17,5 +18,6 @@ router.get("/infinite", getProductInfinite);
 router.get("/stats", getProductStats);
 router.patch("/:id", updateProduct);
 router.get("/:id", getItemById);
+router.delete("/:id", deleteProduct); // Placeholder for delete route
 
 export default router;

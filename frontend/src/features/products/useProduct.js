@@ -96,3 +96,15 @@ export const useCreateProduct = () => {
     }
   });
 };
+
+export const useDeleteProduct = (id) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.delete(`/products/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["products"]);  
+    }});
+}

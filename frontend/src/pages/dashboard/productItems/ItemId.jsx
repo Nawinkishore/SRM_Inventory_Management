@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useProductById, useUpdateProduct } from "@/features/products/useProduct";
+import { useDeleteProduct, useProductById, useUpdateProduct } from "@/features/products/useProduct";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ const ItemId = () => {
   const { id } = useParams();
   const { data, isLoading, isError } = useProductById(id);
   const { mutate: updateProduct } = useUpdateProduct(id);
+  const {mutate: deleteProduct} = useDeleteProduct(id);
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -99,9 +100,19 @@ const ItemId = () => {
   if (isLoading) return <p>Loading...</p>;
   if (isError) return <p>Error loading item</p>;
 
+  const handleDelete = () => {
+    deleteProduct(id,{
+        onSuccess: () => {
+            toast.success("Product deleted successfully.");
+            window.location.href = '/dashboard/productitems';
+        }
+    })
+    
+  }
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl">
-
+      
       <div className="flex gap-2 mb-6">
         {!isEditing ? (
           <div className="flex items-center gap-2">
@@ -227,7 +238,11 @@ const ItemId = () => {
             placeholder="0.00"
           />
         </div>
+        
       </div>
+      <div className=" mt-6">
+            <Button className="w-full border hover:bg-red-500 hover:text-white" variant={'ghost'} onClick={handleDelete}>Delete</Button>
+        </div>
 
     </div>
   );

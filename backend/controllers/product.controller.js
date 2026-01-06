@@ -201,3 +201,22 @@ export const getProductStats = async (req, res) => {
     return res.status(400).json({ success: false, message: error.message });
   }
 };
+
+export const deleteProduct = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedProduct = await Product.findByIdAndDelete(id);
+    if (!deletedProduct) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
+    }
+    return res.status(200).json({ 
+      success: true, 
+      message: "Product deleted successfully" 
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+}
