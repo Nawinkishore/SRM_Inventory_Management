@@ -6,6 +6,8 @@ import {
   ShoppingCart,
   EqualApproximately,
   Sheet,
+  ShoppingBag,
+  Box 
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -26,18 +28,25 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
       icon: Container,
       path: "/dashboard/invoices",
     },
-    {
-      id: "Add Stock",
-      label: "Add Stock",
-      icon: ShoppingCart,
-      path: "/dashboard/stocks",
-    },
+    // {
+    //   id: "Add Stock",
+    //   label: "Add Stock",
+    //   icon: ShoppingCart,
+    //   path: "/dashboard/stocks",
+    // },
     {
       id: "quotation",
       label: "Quotation",
       icon: EqualApproximately,
       path: "/dashboard/quotation",
     },
+    {
+      id: "Items",
+      label: "Items",
+      icon: Box ,
+      path: "/dashboard/productitems",
+    },
+
     {
       id: "excel",
       label: "Import Excel",

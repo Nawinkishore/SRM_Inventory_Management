@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/api/axios";
 
 export const useProductSearch = (search) => {
@@ -9,6 +9,70 @@ export const useProductSearch = (search) => {
       const res = await api.get(`/products/getProducts?search=${search}`);
       return res.data.products;
     },
-    enabled: !!search,  // only runs when search not empty
+    enabled: !!search,
+  });
+};
+
+export const useInfiniteProducts = (limit = 30, search = "") => {
+  return useInfiniteQuery({
+    queryKey: ["infiniteProducts", search],
+    
+    queryFn: async ({ pageParam = null }) => {
+      const res = await api.get("/products/infinite", {
+        params: {
+          limit,
+          lastId: pageParam || null,
+          search: search || ""
+        }
+      });
+      return res.data;
+    },
+    
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.hasMore || !lastPage?.lastId) {
+        return undefined;
+      }
+      return lastPage.lastId;
+    },
+    
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useProductById = (id) => {
+  return useQuery({
+    queryKey: ["product", id],
+    queryFn: async () => {
+      const res = await api.get(`/products/${id}`);
+      return res.data.item;
+    },
+    enabled: !!id,
+  });
+};
+
+export const useUpdateProduct = (id) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await api.patch(`/products/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["products"]);
+      queryClient.invalidateQueries(["infiniteProducts"]);
+      queryClient.invalidateQueries(["product", id]);
+      queryClient.invalidateQueries(["productStats"]);
+    }
+  });
+};
+
+export const useProductStats = () => {
+  return useQuery({
+    queryKey: ["productStats"],
+    queryFn: async () => {
+      const res = await api.get("/products/stats");
+      return res.data.statistics;
+    },
+    staleTime: 1000 * 60 * 5,
   });
 };

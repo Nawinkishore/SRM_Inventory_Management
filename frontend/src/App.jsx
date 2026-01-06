@@ -10,12 +10,15 @@ import InvoiceId from "./pages/dashboard/invoice/InvoiceId";
 import { Toaster } from "sonner";
 
 import { SignedIn, SignedOut, SignIn, SignUp } from "@clerk/clerk-react";
-import AddItem from "./pages/dashboard/items/AddItem";
+import AddItem from "./pages/dashboard/productItems/AddItem";
 import EditItem from "./pages/dashboard/items/EditItem";
 import Quotation from "./pages/dashboard/quotation/Quotation";
 import AddQuotation from "./pages/dashboard/quotation/AddQuotation";
 import ViewQuotation from "./pages/dashboard/quotation/ViewQuotation";
 import Excel from "./pages/dashboard/excel/Excel";
+import Item from "./pages/dashboard/productItems/Item";
+import ItemDetails from "./pages/dashboard/productItems/itemDetails";
+import ItemId from "./pages/dashboard/productItems/itemId";
 
 function App() {
   return (
@@ -66,13 +69,17 @@ function App() {
             <Route path="invoice" element={<InvoiceGenerator />} />
             <Route path="invoices" element={<InvoiceList />} />
             <Route path="invoice/:id" element={<InvoiceId />} />
-            <Route path="stocks" element={<Stock />} />
-            <Route path="stocks/add" element={<AddItem />} />
-            <Route path="stocks/edit/:id" element={<EditItem />} />
+            {/* <Route path="stocks" element={<Stock />} /> */}
+            {/* <Route path="stocks/add" element={<AddItem />} /> */}
+            {/* <Route path="stocks/edit/:id" element={<EditItem />} /> */}
             <Route path="quotation" element={<Quotation />} />
             <Route path="quotation/add" element={<AddQuotation />} />
             <Route path="quotation/view/:id" element={<ViewQuotation />} />
             <Route path="excel" element={<Excel />} />
+            <Route path="productitems" element={<Item />} />
+            <Route path="productitems/itemdetails" element={<ItemDetails />} />
+            <Route path="productitems/itemId/:id" element={<ItemId />} />
+            <Route path="productitems/add" element={<AddItem />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
             
           </Route>

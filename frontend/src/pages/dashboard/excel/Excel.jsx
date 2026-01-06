@@ -2,45 +2,57 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  AlertCircle,
+  CheckCircle2,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { toast } from "sonner";
 
 const Excel = ({ onSuccess }) => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
   const [showRequirements, setShowRequirements] = useState(true);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
-    setMessage("");
   };
 
   const handleUpload = async () => {
     if (!file) {
-      setMessage("Please select an Excel file first");
+      toast.error("Please select an Excel file first");
       return;
     }
 
     try {
       setLoading(true);
-      setMessage("");
 
       const formData = new FormData();
       formData.append("file", file);
 
-      // Simulated API call - replace with your actual API
-      // const res = await api.put("/excel/import", formData, {
-      //   headers: { "Content-Type": "multipart/form-data" },
-      // });
+      // Using fetch API - replace with your actual backend URL
+      const response = await fetch('http://localhost:5000/api/excel/import', {
+        method: 'PUT',
+        body: formData,
+        // Don't set Content-Type header - browser sets it with boundary automatically
+      });
 
-      // Simulation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setMessage("Upload successful");
-      if (onSuccess) onSuccess();
+      const data = await response.json();
 
+      if (data.success) {
+        toast.success(data.message || "Upload successful");
+        setFile(null); // Clear the file after successful upload
+        if (onSuccess) onSuccess();
+      } else {
+        toast.error(data.message || "Upload failed");
+      }
     } catch (error) {
-      console.error(error);
-      setMessage(error?.response?.data?.message || "Upload failed. Try again.");
+      console.error('Upload error:', error);
+      toast.error("Upload failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +79,9 @@ const Excel = ({ onSuccess }) => {
               <FileSpreadsheet className="w-5 h-5" />
               Import Product Data
             </h2>
-            <p className="text-sm text-gray-600">Upload Excel file to replace all existing products</p>
+            <p className="text-sm text-gray-600">
+              Upload Excel file to replace all existing products
+            </p>
           </div>
         </div>
 
@@ -85,16 +99,24 @@ const Excel = ({ onSuccess }) => {
               <span className="text-sm sm:text-base text-blue-600 hover:text-blue-700 font-medium">
                 Click to browse
               </span>
-              <span className="text-sm sm:text-base text-gray-600"> or drag and drop</span>
+              <span className="text-sm sm:text-base text-gray-600">
+                {" "}
+                or drag and drop
+              </span>
             </label>
-            <p className="text-xs sm:text-sm text-gray-500 mt-2">Excel files only (.xlsx, .xls)</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2">
+              Excel files only (.xlsx, .xls)
+            </p>
             {file && (
               <div className="mt-4 inline-flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-md">
                 <FileSpreadsheet className="w-4 h-4 text-blue-600" />
                 <span className="text-sm font-medium text-blue-700 truncate max-w-[200px] sm:max-w-none">
                   {file.name}
                 </span>
-                <button onClick={() => setFile(null)} className="text-blue-600 hover:text-blue-800">
+                <button
+                  onClick={() => setFile(null)}
+                  className="text-blue-600 hover:text-blue-800"
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -108,19 +130,6 @@ const Excel = ({ onSuccess }) => {
           >
             {loading ? "Uploading..." : "Upload & Replace All Products"}
           </Button>
-
-          {message && (
-            <Alert className={message.includes("successful") ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"}>
-              <AlertDescription className="flex items-center gap-2">
-                {message.includes("successful") ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-red-600" />
-                )}
-                <span className="text-sm">{message}</span>
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
       </Card>
 
@@ -134,7 +143,11 @@ const Excel = ({ onSuccess }) => {
             <AlertCircle className="w-5 h-5 text-blue-600" />
             Excel Import Requirements
           </h3>
-          {showRequirements ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          {showRequirements ? (
+            <ChevronUp className="w-5 h-5" />
+          ) : (
+            <ChevronDown className="w-5 h-5" />
+          )}
         </button>
 
         {showRequirements && (
@@ -143,12 +156,20 @@ const Excel = ({ onSuccess }) => {
             <Alert className="bg-blue-50 border-blue-200">
               <AlertDescription>
                 <div className="space-y-2">
-                  <p className="font-medium text-sm sm:text-base">Quick Checklist:</p>
+                  <p className="font-medium text-sm sm:text-base">
+                    Quick Checklist:
+                  </p>
                   <ul className="text-xs sm:text-sm space-y-1 ml-4 list-disc">
-                    <li>Headers must be on <strong>Row-2</strong></li>
-                    <li>Upload <strong>.xlsx or .xls</strong> files only</li>
+                    <li>
+                      Headers must be on <strong>Row-2</strong>
+                    </li>
+                    <li>
+                      Upload <strong>.xlsx or .xls</strong> files only
+                    </li>
                     <li>All 8 required columns must be present</li>
-                    <li>This will <strong>replace all existing data</strong></li>
+                    <li>
+                      This will <strong>replace all existing data</strong>
+                    </li>
                   </ul>
                 </div>
               </AlertDescription>
@@ -157,24 +178,37 @@ const Excel = ({ onSuccess }) => {
             {/* Header Row Requirement */}
             <div className="space-y-2">
               <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2">
-                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span>
+                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                  1
+                </span>
                 Header Row Structure
               </h4>
               <div className="ml-8 text-xs sm:text-sm text-gray-700 space-y-2">
-                <p><strong>VERY IMPORTANT:</strong> Column headers must be on <strong>Row-2</strong></p>
+                <p>
+                  <strong>VERY IMPORTANT:</strong> Column headers must be on{" "}
+                  <strong>Row-2</strong>
+                </p>
                 <div className="overflow-x-auto">
                   <table className="min-w-full border text-xs">
                     <tbody>
                       <tr className="border-b bg-gray-50">
-                        <td className="border-r px-2 py-1 font-medium">Row 1</td>
-                        <td className="px-2 py-1">Can be empty / title / formatting (ignored)</td>
+                        <td className="border-r px-2 py-1 font-medium">
+                          Row 1
+                        </td>
+                        <td className="px-2 py-1">
+                          Can be empty / title / formatting (ignored)
+                        </td>
                       </tr>
                       <tr className="border-b bg-blue-50">
                         <td className="border-r px-2 py-1 font-bold">Row 2</td>
-                        <td className="px-2 py-1 font-bold">Column headers (REQUIRED)</td>
+                        <td className="px-2 py-1 font-bold">
+                          Column headers (REQUIRED)
+                        </td>
                       </tr>
                       <tr>
-                        <td className="border-r px-2 py-1 font-medium">Row 3+</td>
+                        <td className="border-r px-2 py-1 font-medium">
+                          Row 3+
+                        </td>
                         <td className="px-2 py-1">Data rows</td>
                       </tr>
                     </tbody>
@@ -186,24 +220,34 @@ const Excel = ({ onSuccess }) => {
             {/* Required Columns */}
             <div className="space-y-2">
               <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2">
-                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">2</span>
+                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                  2
+                </span>
                 Required Columns (8 columns)
               </h4>
               <div className="ml-8 overflow-x-auto">
                 <table className="min-w-full border text-xs sm:text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="border px-2 py-2 text-left font-medium">Excel Header</th>
-                      <th className="border px-2 py-2 text-left font-medium">Internal Field</th>
+                      <th className="border px-2 py-2 text-left font-medium">
+                        Excel Header
+                      </th>
+                      <th className="border px-2 py-2 text-left font-medium">
+                        Internal Field
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {requiredColumns.map((col, idx) => (
                       <tr key={idx} className="border-b hover:bg-gray-50">
                         <td className="border px-2 py-2">
-                          <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">{col.excel}</code>
+                          <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">
+                            {col.excel}
+                          </code>
                         </td>
-                        <td className="border px-2 py-2 text-gray-600">{col.field}</td>
+                        <td className="border px-2 py-2 text-gray-600">
+                          {col.field}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -214,7 +258,9 @@ const Excel = ({ onSuccess }) => {
             {/* Data Format Rules */}
             <div className="space-y-2">
               <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2">
-                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">3</span>
+                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                  3
+                </span>
                 Data Format Rules
               </h4>
               <div className="ml-8 space-y-3">
@@ -238,7 +284,8 @@ const Excel = ({ onSuccess }) => {
                 </div>
                 <Alert className="bg-red-50 border-red-200">
                   <AlertDescription className="text-xs sm:text-sm">
-                    <strong>❌ Don't:</strong> Include commas in numbers (263,679) or leave mandatory fields empty
+                    <strong>❌ Don't:</strong> Include commas in numbers
+                    (263,679) or leave mandatory fields empty
                   </AlertDescription>
                 </Alert>
               </div>
@@ -247,33 +294,49 @@ const Excel = ({ onSuccess }) => {
             {/* Common Mistakes */}
             <div className="space-y-2">
               <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2">
-                <span className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">!</span>
+                <span className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                  !
+                </span>
                 Common Mistakes
               </h4>
               <div className="ml-8 overflow-x-auto">
                 <table className="min-w-full border text-xs sm:text-sm">
                   <thead className="bg-red-50">
                     <tr>
-                      <th className="border px-2 py-2 text-left font-medium">Mistake</th>
-                      <th className="border px-2 py-2 text-left font-medium">Result</th>
+                      <th className="border px-2 py-2 text-left font-medium">
+                        Mistake
+                      </th>
+                      <th className="border px-2 py-2 text-left font-medium">
+                        Result
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="border-b">
                       <td className="border px-2 py-2">Headers in Row-1</td>
-                      <td className="border px-2 py-2 text-red-600">Cannot detect fields</td>
+                      <td className="border px-2 py-2 text-red-600">
+                        Cannot detect fields
+                      </td>
                     </tr>
                     <tr className="border-b">
                       <td className="border px-2 py-2">Misspelled header</td>
-                      <td className="border px-2 py-2 text-red-600">Validation fails</td>
+                      <td className="border px-2 py-2 text-red-600">
+                        Validation fails
+                      </td>
                     </tr>
                     <tr className="border-b">
-                      <td className="border px-2 py-2">Missing required column</td>
-                      <td className="border px-2 py-2 text-red-600">Upload rejected</td>
+                      <td className="border px-2 py-2">
+                        Missing required column
+                      </td>
+                      <td className="border px-2 py-2 text-red-600">
+                        Upload rejected
+                      </td>
                     </tr>
                     <tr className="border-b">
                       <td className="border px-2 py-2">Numbers with commas</td>
-                      <td className="border px-2 py-2 text-red-600">Incorrect values</td>
+                      <td className="border px-2 py-2 text-red-600">
+                        Incorrect values
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -284,7 +347,10 @@ const Excel = ({ onSuccess }) => {
             <Alert className="bg-yellow-50 border-yellow-300">
               <AlertCircle className="w-4 h-4 text-yellow-600" />
               <AlertDescription className="text-xs sm:text-sm">
-                <strong>⚠️ Important:</strong> Uploading a file will <strong>delete all existing product data</strong> and replace it with the uploaded data. Please ensure your file is correct before uploading.
+                <strong>⚠️ Important:</strong> Uploading a file will{" "}
+                <strong>delete all existing product data</strong> and replace it
+                with the uploaded data. Please ensure your file is correct
+                before uploading.
               </AlertDescription>
             </Alert>
           </div>
