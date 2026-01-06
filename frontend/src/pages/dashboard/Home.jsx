@@ -1,15 +1,15 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, 
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  BarChart, Bar, PieChart, Pie, Cell, 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from "recharts";
 import { 
-  TrendingUp, DollarSign, Package, AlertTriangle, 
+  TrendingUp, DollarSign, Package, 
   FileText, CheckCircle, Clock, ShoppingCart 
 } from "lucide-react";
 import { useInvoices } from "@/features/invoice/useInvoice";
-import { useStockSummary, useItems } from "@/features/items/useItems";
+import { useProductStats } from "@/features/products/useProduct";
 
 // Table Components
 const Table = ({ children, ...props }) => (
@@ -54,8 +54,8 @@ const TableCell = ({ children, ...props }) => (
 );
 
 const Home = () => {
-  // 🔹 STOCK SUMMARY
-  const { data: stockSummary, isLoading: stockLoading } = useStockSummary();
+  // 🔹 PRODUCT STATS
+  const { data: productStats, isLoading: productStatsLoading } = useProductStats();
 
   // 🔹 FETCH ALL INVOICES FOR ACCURATE STATS
   const { data: allInvoicesData, isLoading: statsLoading } = useInvoices({
@@ -77,13 +77,6 @@ const Home = () => {
     customerName: "",
   });
 
-  // 🔹 ALL ITEMS
-  const { data: itemsData, isLoading: itemsLoading } = useItems({
-    page: 1,
-    limit: 100,
-    q: "",
-  });
-
   // ---- SAFE VALUES WITH NULL CHECKS ----
   const allInvoices = allInvoicesData?.data ?? [];
   const totalInvoicesCount = allInvoicesData?.meta?.totalDocs ?? 0;
@@ -97,8 +90,11 @@ const Home = () => {
     (i) => i.invoiceStatus === "pending"
   ).length;
 
-  const lowStock = itemsData?.data?.filter((item) => Number(item.stock) <= 3) ?? [];
-  const stockValue = Number(stockSummary?.stockValue || 0);
+  // Product stats
+  const totalItems = productStats?.totalItems ?? 0;
+  const stockValue = productStats?.totalStockValue ?? 0;
+  const lowStockItems = productStats?.lowStockItems ?? 0;
+  const outOfStockItems = productStats?.outOfStockItems ?? 0;
 
   // Revenue calculations
   const totalRevenue = allInvoices
@@ -121,8 +117,6 @@ const Home = () => {
   const advanceInvoices = allInvoices.filter(
     (i) => i.invoiceType?.toLowerCase() === "advance"
   ).length;
-
-  const totalItems = itemsData?.meta?.totalDocs ?? 0;
 
   const avgInvoiceValue = totalInvoicesCount > 0 
     ? Math.round(allInvoices.reduce((sum, inv) => sum + (Number(inv.totalAmount) || 0), 0) / totalInvoicesCount)
@@ -154,8 +148,9 @@ const Home = () => {
   ];
 
   const stockStatusData = [
-    { name: 'Low Stock', value: lowStock.length, color: '#ef4444' },
-    { name: 'Normal Stock', value: totalItems - lowStock.length, color: '#22c55e' },
+    { name: 'Out of Stock', value: outOfStockItems, color: '#ef4444' },
+    { name: 'Low Stock', value: lowStockItems, color: '#f59e0b' },
+    { name: 'Normal Stock', value: totalItems - lowStockItems - outOfStockItems, color: '#22c55e' },
   ].filter(d => d.value > 0);
 
   return (
@@ -212,24 +207,28 @@ const Home = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold mb-1">
-                {stockLoading ? "..." : `₹${(stockValue / 100000).toFixed(1)}L`}
+                {productStatsLoading ? "..." : `₹${(stockValue / 100000).toFixed(1)}L`}
               </div>
-              <p className="text-xs opacity-80">{totalItems} items</p>
+              <p className="text-xs opacity-80">
+                {productStatsLoading ? "..." : `${totalItems.toLocaleString('en-IN')} items`}
+              </p>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-red-500 to-red-600 text-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium opacity-90">Low Stock Alert</CardTitle>
-                <AlertTriangle className="w-5 h-5 opacity-80" />
+                <CardTitle className="text-sm font-medium opacity-90">Total Products</CardTitle>
+                <Package className="w-5 h-5 opacity-80" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold mb-1">
-                {itemsLoading ? "..." : lowStock.length}
+                {productStatsLoading ? "..." : totalItems.toLocaleString('en-IN')}
               </div>
-              <p className="text-xs opacity-80">Need attention</p>
+              <p className="text-xs opacity-80">
+                {productStatsLoading ? "..." : `${lowStockItems} low stock`}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -584,71 +583,19 @@ const Home = () => {
 
               <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
                 <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  Low Stock Items
+                  <Package className="w-3 h-3" />
+                  Stock Value
                 </div>
-                <div className="text-3xl font-bold text-red-600">
-                  {itemsLoading ? "..." : `${lowStock.length}/${totalItems}`}
+                <div className="text-3xl font-bold text-purple-600">
+                  {productStatsLoading ? "..." : `₹${(stockValue / 100000).toFixed(1)}L`}
                 </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {productStatsLoading ? "..." : `${totalItems.toLocaleString('en-IN')} items`}
+                </p>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* LOW STOCK ALERTS */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              Low Stock Alerts
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent>
-            {itemsLoading ? (
-              <div className="text-center py-8 text-slate-500">Loading items...</div>
-            ) : lowStock.length === 0 ? (
-              <div className="text-center py-12 bg-green-50 rounded-lg">
-                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-3" />
-                <p className="text-slate-600 font-medium text-lg">All items are well stocked</p>
-                <p className="text-slate-500 text-sm mt-1">No immediate action required</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="font-semibold">Part No</TableHead>
-                      <TableHead className="font-semibold">Item</TableHead>
-                      <TableHead className="font-semibold">Stock</TableHead>
-                      <TableHead className="font-semibold">Sale Price</TableHead>
-                      <TableHead className="font-semibold">Value</TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {lowStock.slice(0, 5).map((item) => (
-                      <TableRow key={item._id} className="hover:bg-red-50">
-                        <TableCell className="font-mono text-xs text-slate-600 bg-slate-50">{item.partNo}</TableCell>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center gap-1 text-red-600 font-bold text-lg bg-red-50 px-2 py-1 rounded">
-                            <AlertTriangle className="w-4 h-4" />
-                            {item.stock}
-                          </span>
-                        </TableCell>
-                        <TableCell>₹{Number(item.salePrice || 0).toLocaleString('en-IN')}</TableCell>
-                        <TableCell className="font-semibold">
-                          ₹{((Number(item.stock) || 0) * (Number(item.salePrice) || 0)).toLocaleString('en-IN')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
