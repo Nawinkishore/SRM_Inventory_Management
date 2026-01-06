@@ -17,7 +17,7 @@ import AddQuotation from "./pages/dashboard/quotation/AddQuotation";
 import ViewQuotation from "./pages/dashboard/quotation/ViewQuotation";
 import Excel from "./pages/dashboard/excel/Excel";
 import Item from "./pages/dashboard/productItems/Item";
-import ItemDetails from "./pages/dashboard/productItems/itemDetails";
+import ItemDetails from "./pages/dashboard/productItems/ItemDetails";
 import ItemId from "./pages/dashboard/productItems/itemId";
 
 function App() {
