@@ -1,5 +1,56 @@
 import Product from "../models/product.model.js";
 
+export const createProduct = async (req, res) => {
+  const { partNo, partName, tariff, GST, stock, salePrice, purchasePrice, MRP } = req.body;
+  
+  try {
+    // Validate required fields
+    if (!partNo || !partName) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Part Number and Part Name are required" 
+      });
+    }
+
+    // Check if product with same partNo already exists
+    const existingProduct = await Product.findOne({ partNo });
+    if (existingProduct) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Product with this Part Number already exists" 
+      });
+    }
+
+    const newProduct = new Product({
+      partNo,
+      partName,
+      largeGroup: "Yamaha Genuine Parts",
+      tariff: tariff || 0,
+      CGSTCode: GST ? GST / 2 : 0,
+      SGSTCode: GST ? GST / 2 : 0,
+      IGSTCode: GST || 0,
+      stock: stock || 0,
+      salePrice: salePrice || 0,
+      purchasePrice: purchasePrice || 0,
+      revisedMRP: MRP || 0
+    });
+
+    await newProduct.save();
+    
+    return res.status(201).json({ 
+      success: true, 
+      message: "Product created successfully",
+      product: newProduct
+    });
+  } catch (error) {
+    console.error("Create product error:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message || "Failed to create product" 
+    });
+  }
+};
+
 export const getProducts = async (req, res) => {
   try {
     const { search } = req.query;
@@ -109,7 +160,6 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-// New endpoint for statistics
 export const getProductStats = async (req, res) => {
   try {
     const totalItems = await Product.countDocuments();

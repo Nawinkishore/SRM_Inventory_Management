@@ -35,7 +35,7 @@ export const useInfiniteProducts = (limit = 30, search = "") => {
       return lastPage.lastId;
     },
     
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };
 
@@ -73,6 +73,26 @@ export const useProductStats = () => {
       const res = await api.get("/products/stats");
       return res.data.statistics;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+export const useCreateProduct = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await api.post("/products/create", data);
+      return res.data;
+    },
+    onSuccess: () => {
+      // Invalidate all product-related queries to refresh the data
+      queryClient.invalidateQueries(["products"]);
+      queryClient.invalidateQueries(["infiniteProducts"]);
+      queryClient.invalidateQueries(["productStats"]);
+    },
+    onError: (error) => {
+      console.error("Create product error:", error);
+    }
   });
 };
